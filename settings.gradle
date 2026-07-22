@@ -1,0 +1,9 @@
+rootProject.name = 'nalssilog-api'
+
+include 'app'
+include 'common'
+include 'storage'
+include 'auth'
+include 'member'
+include 'location'
+include 'report'

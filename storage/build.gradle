@@ -1,0 +1,7 @@
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+
+    // 오브젝트 스토리지(Cloudflare R2, S3 호환) presigned URL 발급용. AWS SDK v2 S3.
+    implementation platform('software.amazon.awssdk:bom:2.29.9')
+    implementation 'software.amazon.awssdk:s3'
+}

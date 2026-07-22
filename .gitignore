@@ -1,0 +1,87 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### Secrets & local config — NEVER commit ###
+.env
+.env.*
+*.pem
+*.p12
+*.jks
+*.key
+application.yml
+application.yaml
+application-local.yml
+application-local.yaml
+application-secret.yml
+application-secret.yaml
+application-prod.yml
+application-prod.yaml
+**/application-local.yml
+**/application-local.yaml
+**/application-secret.yml
+**/application-secret.yaml
+**/application-prod.yml
+**/application-prod.yaml
+
+### Internal docs — 프론트 계약 예시 등 내부 문서(커밋 금지) ###
+docs/frontend-api-examples.md
+
+### AI assistant instruction files ###
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+AGENTS.md
+GEMINI.md
+.cursor/
+.cursorrules
+.cursorignore
+.windsurfrules
+.aider*
+.mcp.json
+.github/copilot-instructions.md
+copilot-instructions.md
+
+### Logs & dumps ###
+*.log
+logs/
+hs_err_pid*
+replay_pid*
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/

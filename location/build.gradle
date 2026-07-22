@@ -1,0 +1,6 @@
+dependencies {
+    implementation project(':common')
+
+    // 즐겨찾기 컨트롤러에서 인증된 memberId(@AuthenticationPrincipal)를 읽기 위한 최소 의존. 설정은 auth 소유.
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+}

@@ -1,0 +1,11 @@
+dependencies {
+    implementation project(':common')
+    implementation project(':member')
+    implementation project(':location')
+
+    // 컨트롤러에서 인증된 memberId(@AuthenticationPrincipal)를 읽기 위한 최소 의존. 설정은 auth 소유.
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // 이미지 presigned URL 발급 — R2/S3 인프라는 storage 모듈이 공유 제공.
+    implementation project(':storage')
+}
