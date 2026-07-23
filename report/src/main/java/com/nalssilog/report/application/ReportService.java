@@ -46,6 +46,7 @@ public class ReportService {
         LocationSummary location = locationClient.getLocation(command.locationId());
         imageStorageClient.validateImageCount(command.imageKeys().size());
         command.imageKeys().forEach(imageStorageClient::validateKey);
+        command.imageKeys().forEach(imageStorageClient::verifyUploaded);
 
         WeatherReport report = actor.type() == ActorType.MEMBER
                 ? WeatherReport.ofMember(command.locationId(), actor.memberId(),

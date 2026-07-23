@@ -5,6 +5,7 @@ import com.nalssilog.member.application.dto.AvatarPresign;
 import com.nalssilog.member.config.AvatarStorageProperties;
 import com.nalssilog.member.domain.MemberErrorCode;
 import com.nalssilog.storage.ObjectStorage;
+import com.nalssilog.storage.StoredObject;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,24 @@ public class AvatarStorageClient {
     public void validateKey(Long memberId, String storageKey) {
         if (storageKey == null || !storageKey.startsWith(memberPrefix(memberId))) {
             throw new NalssiLogException(MemberErrorCode.INVALID_IMAGE_KEY);
+        }
+    }
+
+    /** 업로드 후 R2 HEAD 로 실제 존재·타입·크기 검증. verifyUpload off(local)면 스킵. */
+    public void verifyUploaded(String storageKey) {
+        if (!objectStorage.isVerifyEnabled()) {
+            return;
+        }
+
+        StoredObject object = objectStorage.head(storageKey)
+                .orElseThrow(() -> new NalssiLogException(MemberErrorCode.IMAGE_NOT_FOUND));
+
+        if (!EXTENSION_BY_CONTENT_TYPE.containsKey(normalize(object.contentType()))) {
+            throw new NalssiLogException(MemberErrorCode.UNSUPPORTED_IMAGE_TYPE);
+        }
+
+        if (object.contentLength() > properties.maxBytes().toBytes()) {
+            throw new NalssiLogException(MemberErrorCode.IMAGE_TOO_LARGE);
         }
     }
 

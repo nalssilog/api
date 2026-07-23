@@ -2,7 +2,6 @@ package com.nalssilog.member.application;
 
 import com.nalssilog.member.application.dto.FeedbackInfo;
 import com.nalssilog.member.domain.Feedback;
-import com.nalssilog.member.domain.FeedbackCategory;
 import com.nalssilog.member.repository.FeedbackRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,8 +18,8 @@ public class FeedbackService {
     private final FeedbackRepository feedbackRepository;
 
     @Transactional
-    public FeedbackInfo submit(Long memberId, FeedbackCategory category, String content) {
-        Feedback feedback = Feedback.create(memberId, category, content.strip());
+    public FeedbackInfo submit(Long memberId, String content) {
+        Feedback feedback = Feedback.create(memberId, content.strip());
 
         return feedbackRepository.save(feedback);
     }

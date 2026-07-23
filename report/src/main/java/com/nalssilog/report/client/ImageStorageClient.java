@@ -5,6 +5,7 @@ import com.nalssilog.report.application.dto.PresignedUpload;
 import com.nalssilog.report.config.StorageProperties;
 import com.nalssilog.report.domain.ReportErrorCode;
 import com.nalssilog.storage.ObjectStorage;
+import com.nalssilog.storage.StoredObject;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -61,6 +62,24 @@ public class ImageStorageClient {
     public void validateKey(String storageKey) {
         if (storageKey == null || !storageKey.startsWith(properties.keyPrefix() + "/")) {
             throw new NalssiLogException(ReportErrorCode.INVALID_IMAGE_KEY);
+        }
+    }
+
+    /** 업로드 후 R2 HEAD 로 실제 존재·타입·크기 검증(클라 선언값 우회 방지). verifyUpload off(local)면 스킵. */
+    public void verifyUploaded(String storageKey) {
+        if (!objectStorage.isVerifyEnabled()) {
+            return;
+        }
+
+        StoredObject object = objectStorage.head(storageKey)
+                .orElseThrow(() -> new NalssiLogException(ReportErrorCode.IMAGE_NOT_FOUND));
+
+        if (!EXTENSION_BY_CONTENT_TYPE.containsKey(normalize(object.contentType()))) {
+            throw new NalssiLogException(ReportErrorCode.UNSUPPORTED_IMAGE_TYPE);
+        }
+
+        if (object.contentLength() > properties.maxImageBytes().toBytes()) {
+            throw new NalssiLogException(ReportErrorCode.IMAGE_TOO_LARGE);
         }
     }
 

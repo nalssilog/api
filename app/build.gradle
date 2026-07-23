@@ -9,6 +9,20 @@ dependencies {
     implementation project(':location')
     implementation project(':report')
 
+    // dev/prod 스키마 마이그레이션. Boot 4 는 자동설정이 포함된 starter + DB 전용 모듈이 필요.
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
     runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'net.logstash.logback:logstash-logback-encoder:8.1'
+}
+
+// 배포 이미지에서 COPY 하기 쉽게 실행 jar 이름 고정 (bootJar = 실행가능, plain jar 아님).
+bootJar {
+    archiveFileName = 'app.jar'
+}
+
+// 설정 yml 은 api-config 서브모듈(루트 config/)에서 로드. optional 이라 서브모듈 미체크아웃이어도 클래스패스 yml 로 폴백.
+bootRun {
+    systemProperty 'spring.config.additional-location', "optional:file:${rootProject.projectDir}/config/"
 }

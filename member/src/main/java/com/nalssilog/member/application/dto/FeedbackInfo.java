@@ -1,7 +1,6 @@
 package com.nalssilog.member.application.dto;
 
 import com.nalssilog.member.domain.Feedback;
-import com.nalssilog.member.domain.FeedbackCategory;
 import java.time.Instant;
 
 /**
@@ -10,7 +9,6 @@ import java.time.Instant;
 public record FeedbackInfo(
         Long id,
         Long authorMemberId,
-        FeedbackCategory category,
         String content,
         Instant createdAt
 ) {
@@ -19,7 +17,6 @@ public record FeedbackInfo(
         return new FeedbackInfo(
                 feedback.getId(),
                 feedback.getAuthorMemberId(),
-                feedback.getCategory(),
                 feedback.getContent(),
                 feedback.getCreatedAt()
         );

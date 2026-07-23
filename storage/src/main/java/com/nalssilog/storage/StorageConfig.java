@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
@@ -24,11 +25,29 @@ public class StorageConfig {
         return S3Presigner.builder()
                 .endpointOverride(URI.create(r2.endpoint()))
                 .region(Region.of("auto"))
-                .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(r2.accessKey(), r2.secretKey())))
+                .credentialsProvider(credentials(r2))
                 .serviceConfiguration(S3Configuration.builder()
                         .pathStyleAccessEnabled(true)
                         .build())
                 .build();
+    }
+
+    // 업로드 후 HEAD 검증용. presigner 는 URL 만 만들고 실제 HEAD 호출은 이 클라이언트가 한다.
+    @Bean
+    public S3Client s3Client(StorageProperties properties) {
+        StorageProperties.R2 r2 = properties.r2();
+
+        return S3Client.builder()
+                .endpointOverride(URI.create(r2.endpoint()))
+                .region(Region.of("auto"))
+                .credentialsProvider(credentials(r2))
+                .serviceConfiguration(S3Configuration.builder()
+                        .pathStyleAccessEnabled(true)
+                        .build())
+                .build();
+    }
+
+    private StaticCredentialsProvider credentials(StorageProperties.R2 r2) {
+        return StaticCredentialsProvider.create(AwsBasicCredentials.create(r2.accessKey(), r2.secretKey()));
     }
 }

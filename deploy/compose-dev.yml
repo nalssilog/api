@@ -1,0 +1,31 @@
+# dev 환경 compose. 지금은 prod 와 같은 EC2 에서 별도 프로젝트로 실행, 추후 인스턴스 분리 시 이 파일만 옮기면 됨.
+# 이미지=ghcr(태그 :dev), Postgres=Neon(dev), Redis=아래 redis-dev 컨테이너, 이미지=R2.
+# 설정: ./config 의 yml 마운트 + ./.env.dev 시크릿. HTTPS/라우팅은 호스트 nginx(EC2 에서 직접).
+name: nalssilog-dev
+
+services:
+  app-dev:
+    image: ghcr.io/nalssilog/api:dev
+    container_name: nalssilog-app-dev
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/config/
+    env_file:
+      - .env.dev
+    volumes:
+      - ./config:/config:ro
+    ports:
+      - "127.0.0.1:8080:8080"   # 호스트 nginx 만 접근
+    depends_on:
+      - redis-dev
+
+  redis-dev:
+    image: redis:7-alpine
+    container_name: nalssilog-redis-dev
+    restart: unless-stopped
+    volumes:
+      - redis-dev-data:/data
+
+volumes:
+  redis-dev-data:

@@ -25,6 +25,6 @@ public class FeedbackController {
     public FeedbackResponse submit(@AuthenticationPrincipal Long memberId,
                                    @Valid @RequestBody CreateFeedbackRequest request) {
         return FeedbackResponse.from(
-                feedbackService.submit(memberId, request.category(), request.content()));
+                feedbackService.submit(memberId, request.content()));
     }
 }

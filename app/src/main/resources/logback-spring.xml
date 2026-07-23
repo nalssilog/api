@@ -22,6 +22,13 @@
         </root>
     </springProfile>
 
+    <!-- dev: 배포 장애를 docker logs 에서 바로 확인할 수 있도록 콘솔 텍스트 로그 -->
+    <springProfile name="dev">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
     <!-- prod: JSON 구조화 로그(콘솔 + 롤링 파일). MDC(traceId + 액세스 필드 method/path/status/durationMs/actor)를 그대로 필드화 -->
     <springProfile name="prod">
         <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">

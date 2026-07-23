@@ -9,7 +9,7 @@ import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * 매 요청마다 CSRF 토큰을 강제로 로드해 XSRF-TOKEN 쿠키가 응답에 내려가도록 한다.
+ * 매 요청마다 CSRF 토큰을 강제로 로드해 XSRF 쿠키(env 별 이름)가 응답에 내려가도록 한다.
  * (SPA 가 이 쿠키를 읽어 이후 상태변경 요청의 X-XSRF-TOKEN 헤더로 되돌려준다)
  */
 final class CsrfCookieFilter extends OncePerRequestFilter {

@@ -4,7 +4,6 @@ import com.nalssilog.auth.application.CustomOAuth2UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -33,20 +32,18 @@ public class AuthSecurityConfig {
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
     private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    @Value("${nalssilog.frontend.base-url}")
-    private String frontendBaseUrl;
+    private final AuthProperties authProperties;
+    private final CorsProperties corsProperties;
 
     @Bean
     // S1130/S112: HttpSecurity.build() 가 checked Exception 을 던져 throws Exception 이 강제됨(프레임워크 API).
-    // S3330: CSRF 더블서브밋 토큰은 프론트 JS 가 읽어 X-XSRF-TOKEN 헤더로 되돌려야 하므로 HttpOnly=false 가 의도된 설계.
-    @SuppressWarnings({"java:S1130", "java:S112", "java:S3330"})
+    @SuppressWarnings({"java:S1130", "java:S112"})
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 // 쿠키 기반 인증이라 CSRF 방어 필요. SPA 더블 서브밋: XSRF-TOKEN 쿠키(JS 읽기 가능) ↔ X-XSRF-TOKEN 헤더.
                 // 프론트는 상태변경(POST/PUT/PATCH/DELETE) 요청에 이 헤더를 실어야 한다. (GET·OAuth 리다이렉트는 면제)
                 .csrf(csrf -> csrf
-                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRepository(csrfTokenRepository())
                         .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
                 .cors(Customizer.withDefaults())
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -102,7 +99,8 @@ public class AuthSecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(frontendBaseUrl));
+        // credentials=true 라 "*" 불가. env 별 실제 프론트 origin 만 허용(패턴 지원 — *.vercel.app 등).
+        configuration.setAllowedOriginPatterns(corsProperties.allowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
@@ -110,6 +108,27 @@ public class AuthSecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
+    }
+
+    // S3330: 더블서브밋 CSRF 토큰은 프론트 JS 가 읽어 X-XSRF-TOKEN 헤더로 되돌려야 하므로 HttpOnly=false 가 의도된 설계.
+    // 인증 정보가 담긴 쿠키는 AuthCookieManager 에서 별도로 HttpOnly=true 로 생성한다.
+    @SuppressWarnings("java:S3330")
+    private CookieCsrfTokenRepository csrfTokenRepository() {
+        CookieCsrfTokenRepository repository = new CookieCsrfTokenRepository();
+        repository.setCookieName(authProperties.csrf().cookieName());
+        repository.setCookieCustomizer(cookie -> {
+            cookie.httpOnly(false)
+                    .secure(authProperties.cookie().secure())
+                    .sameSite("Lax")
+                    .path("/");
+
+            String domain = authProperties.csrf().cookieDomain();
+            if (domain != null && !domain.isBlank()) {
+                cookie.domain(domain);
+            }
+        });
+
+        return repository;
     }
 
     private void writeError(HttpServletResponse response, int status, String code, String message)

@@ -60,10 +60,11 @@ public class MemberProfileService {
         return memberRepository.getMemberInfo(memberId);
     }
 
-    // CUSTOM=본인 발급 key 검증 후 완전 URL 로 저장, PRESET=프리셋 id 그대로, DEFAULT=엔티티에서 null.
+    // CUSTOM=본인 발급 key 검증 + 업로드 HEAD 검증 후 완전 URL 로 저장, PRESET=프리셋 id 그대로, DEFAULT=엔티티에서 null.
     private String resolveAvatarValue(Long memberId, AvatarType avatarType, String avatarValue) {
         if (avatarType == AvatarType.CUSTOM) {
             avatarStorageClient.validateKey(memberId, avatarValue);
+            avatarStorageClient.verifyUploaded(avatarValue);
 
             return avatarStorageClient.toPublicUrl(avatarValue);
         }

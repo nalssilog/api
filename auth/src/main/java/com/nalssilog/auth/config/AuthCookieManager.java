@@ -81,17 +81,17 @@ public class AuthCookieManager {
         return readCookie(request, LINK_INTENT_COOKIE);
     }
 
+    // 인증 쿠키는 host-only(Domain 생략) — dev/prod 인증쿠키 상호 덮어쓰기 방지, localhost 도 동작.
     private void addCookie(HttpServletResponse response, String name, String value, Duration maxAge) {
-        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
+        ResponseCookie cookie = ResponseCookie.from(name, value)
                 .httpOnly(true)
                 .secure(properties.cookie().secure())
                 .sameSite("Lax")
                 .path("/")
-                .maxAge(maxAge);
-        if (properties.cookie().domain() != null && !properties.cookie().domain().isBlank()) {
-            builder.domain(properties.cookie().domain());
-        }
-        response.addHeader(HttpHeaders.SET_COOKIE, builder.build().toString());
+                .maxAge(maxAge)
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     private Optional<String> readCookie(HttpServletRequest request, String name) {
