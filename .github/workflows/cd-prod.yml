@@ -116,9 +116,9 @@ jobs:
           OAUTH_GOOGLE_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_CLIENT_SECRET }}
           OAUTH_KAKAO_CLIENT_ID: ${{ secrets.OAUTH_KAKAO_CLIENT_ID }}
           OAUTH_KAKAO_CLIENT_SECRET: ${{ secrets.OAUTH_KAKAO_CLIENT_SECRET }}
-          PROD_R2_PUBLIC_BASE_URL: ${{ vars.PROD_R2_PUBLIC_BASE_URL }}
-          PROD_R2_ENDPOINT: ${{ vars.PROD_R2_ENDPOINT }}
-          PROD_R2_BUCKET: ${{ vars.PROD_R2_BUCKET }}
+          PROD_R2_PUBLIC_BASE_URL: ${{ secrets.PROD_R2_PUBLIC_BASE_URL }}
+          PROD_R2_ENDPOINT: ${{ secrets.PROD_R2_ENDPOINT }}
+          PROD_R2_BUCKET: ${{ secrets.PROD_R2_BUCKET }}
           PROD_R2_ACCESS_KEY: ${{ secrets.PROD_R2_ACCESS_KEY }}
           PROD_R2_SECRET_KEY: ${{ secrets.PROD_R2_SECRET_KEY }}
         with:
