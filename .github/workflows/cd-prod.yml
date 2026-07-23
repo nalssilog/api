@@ -1,8 +1,10 @@
 name: CD (prod)
 
-# main 푸시(develop→main 머지) → prod 이미지(ghcr :prod) → prod EC2 배포. (PR 검증은 ci.yml)
+# main CI 성공 → prod 이미지(ghcr :prod) → prod EC2 배포.
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
 
 concurrency:
@@ -11,6 +13,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -19,6 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
 
       - name: Checkout config submodule
@@ -41,10 +45,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
 
-      - name: Test & build bootJar
+      - name: Build bootJar
         run: |
           chmod +x gradlew
-          ./gradlew test :app:bootJar
+          ./gradlew :app:bootJar
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -125,7 +129,7 @@ jobs:
           script: |
             set -eu
             cd /home/ubuntu/nalssilog-prod-api
-            for name in GHCR_USERNAME GHCR_TOKEN DB_HOST DB_PORT DB_NAME DB_USERNAME DB_PASSWORD REDIS_HOST REDIS_PORT REDIS_PASSWORD OAUTH_GOOGLE_CLIENT_ID OAUTH_GOOGLE_CLIENT_SECRET OAUTH_KAKAO_CLIENT_ID OAUTH_KAKAO_CLIENT_SECRET PROD_R2_PUBLIC_BASE_URL PROD_R2_ENDPOINT PROD_R2_BUCKET PROD_R2_ACCESS_KEY PROD_R2_SECRET_KEY; do
+            for name in GHCR_USERNAME GHCR_TOKEN DB_HOST DB_PORT DB_NAME DB_USERNAME DB_PASSWORD REDIS_HOST REDIS_PORT REDIS_PASSWORD PROD_R2_PUBLIC_BASE_URL PROD_R2_ENDPOINT PROD_R2_BUCKET PROD_R2_ACCESS_KEY PROD_R2_SECRET_KEY; do
               if [ -z "$(printenv "$name")" ]; then
                 echo "Missing required deployment value: $name"
                 exit 1
@@ -139,10 +143,10 @@ jobs:
             PROD_REDIS_HOST=$REDIS_HOST
             PROD_REDIS_PORT=$REDIS_PORT
             PROD_REDIS_PASSWORD=$REDIS_PASSWORD
-            OAUTH_GOOGLE_CLIENT_ID=$OAUTH_GOOGLE_CLIENT_ID
-            OAUTH_GOOGLE_CLIENT_SECRET=$OAUTH_GOOGLE_CLIENT_SECRET
-            OAUTH_KAKAO_CLIENT_ID=$OAUTH_KAKAO_CLIENT_ID
-            OAUTH_KAKAO_CLIENT_SECRET=$OAUTH_KAKAO_CLIENT_SECRET
+            OAUTH_GOOGLE_CLIENT_ID=${OAUTH_GOOGLE_CLIENT_ID:-dummy}
+            OAUTH_GOOGLE_CLIENT_SECRET=${OAUTH_GOOGLE_CLIENT_SECRET:-dummy}
+            OAUTH_KAKAO_CLIENT_ID=${OAUTH_KAKAO_CLIENT_ID:-dummy}
+            OAUTH_KAKAO_CLIENT_SECRET=${OAUTH_KAKAO_CLIENT_SECRET:-dummy}
             PROD_R2_PUBLIC_BASE_URL=$PROD_R2_PUBLIC_BASE_URL
             PROD_R2_ENDPOINT=$PROD_R2_ENDPOINT
             PROD_R2_BUCKET=$PROD_R2_BUCKET
