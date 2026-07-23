@@ -2,6 +2,7 @@ package com.nalssilog.location.repository;
 
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.location.application.dto.LocationInfo;
+import com.nalssilog.location.client.KakaoRegion;
 import com.nalssilog.location.domain.Location;
 import com.nalssilog.location.domain.LocationErrorCode;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 서비스 호출용 Location 저장소 래퍼. 조회는 DTO 로 반환한다.
@@ -32,13 +34,6 @@ public class LocationRepository {
 
     public LocationInfo getById(Long id) {
         return locationJpaRepository.findById(id)
-                .map(LocationInfo::of)
-                .orElseThrow(() -> new NalssiLogException(LocationErrorCode.LOCATION_NOT_FOUND));
-    }
-
-    public LocationInfo findNearest(double latitude, double longitude) {
-        return locationJpaRepository.findNearest(latitude, longitude, PageRequest.of(0, 1)).stream()
-                .findFirst()
                 .map(LocationInfo::of)
                 .orElseThrow(() -> new NalssiLogException(LocationErrorCode.LOCATION_NOT_FOUND));
     }
@@ -75,5 +70,25 @@ public class LocationRepository {
 
     public void saveAll(List<Location> locations) {
         locationJpaRepository.saveAll(locations);
+    }
+
+    /**
+     * 카카오 법정동 코드로 지역을 원자적으로 등록한 뒤 반환한다.
+     * 같은 법정동에 요청이 동시에 들어와도 DB unique + ON CONFLICT 로 한 행만 유지한다.
+     */
+    @Transactional
+    public LocationInfo findOrCreate(KakaoRegion region) {
+        locationJpaRepository.insertIfAbsent(
+                region.adminCode(),
+                region.sido(),
+                region.sigungu(),
+                region.dong(),
+                region.latitude(),
+                region.longitude()
+        );
+
+        return locationJpaRepository.findByAdminCode(region.adminCode())
+                .map(LocationInfo::of)
+                .orElseThrow(() -> new NalssiLogException(LocationErrorCode.LOCATION_NOT_FOUND));
     }
 }

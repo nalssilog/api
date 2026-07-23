@@ -3,6 +3,7 @@ package com.nalssilog.member.api;
 import com.nalssilog.member.api.dto.AvatarPresignRequest;
 import com.nalssilog.member.api.dto.AvatarPresignResponse;
 import com.nalssilog.member.api.dto.ChangeAvatarRequest;
+import com.nalssilog.member.api.dto.ChangeNameRequest;
 import com.nalssilog.member.api.dto.ChangeNicknameRequest;
 import com.nalssilog.member.api.dto.MemberMeResponse;
 import com.nalssilog.member.api.dto.MemberPublicProfileResponse;
@@ -47,6 +48,12 @@ public class MemberController {
     @GetMapping("/{id}")
     public MemberPublicProfileResponse publicProfile(@PathVariable Long id) {
         return MemberPublicProfileResponse.from(memberProfileService.getPublicProfile(id));
+    }
+
+    @PatchMapping("/me/name")
+    public MemberMeResponse changeName(@AuthenticationPrincipal Long memberId,
+                                       @Valid @RequestBody ChangeNameRequest request) {
+        return MemberMeResponse.from(memberProfileService.changeName(memberId, request.name()));
     }
 
     @PatchMapping("/me/nickname")

@@ -11,6 +11,8 @@ public enum MemberErrorCode implements ErrorCode {
 
     MEMBER_NOT_FOUND("MEMBER_NOT_FOUND", "회원을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     DUPLICATE_NICKNAME("NICKNAME_DUPLICATED", "이미 사용 중인 닉네임입니다.", HttpStatus.CONFLICT),
+    NICKNAME_GENERATION_FAILED("NICKNAME_GENERATION_FAILED", "기본 닉네임을 생성하지 못했습니다.",
+            HttpStatus.INTERNAL_SERVER_ERROR),
     ALREADY_ONBOARDED("ALREADY_ONBOARDED", "이미 가입이 완료된 회원입니다.", HttpStatus.CONFLICT),
     ALREADY_WITHDRAWN("ALREADY_WITHDRAWN", "이미 탈퇴한 회원입니다.", HttpStatus.CONFLICT),
     SOCIAL_ACCOUNT_IN_USE("SOCIAL_ACCOUNT_IN_USE", "이미 다른 계정에 연동된 소셜 로그인입니다.", HttpStatus.CONFLICT),

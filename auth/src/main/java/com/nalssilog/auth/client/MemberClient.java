@@ -1,6 +1,7 @@
 package com.nalssilog.auth.client;
 
 import com.nalssilog.member.application.MemberAccountService;
+import com.nalssilog.member.application.MemberRegistrationService;
 import com.nalssilog.member.application.dto.MemberInfo;
 import com.nalssilog.member.application.dto.SocialLoginResult;
 import com.nalssilog.member.application.dto.TermsAgreement;
@@ -17,16 +18,16 @@ import org.springframework.stereotype.Component;
 public class MemberClient {
 
     private final MemberAccountService memberAccountService;
+    private final MemberRegistrationService memberRegistrationService;
 
     public SocialLoginResult resolveSocialLogin(OAuthUserInfo userInfo) {
         return memberAccountService.resolveSocialLogin(
                 userInfo.provider(), userInfo.providerUserId(), userInfo.email());
     }
 
-    public MemberInfo registerMember(OAuthUserInfo userInfo, String name, String nickname,
-                                     List<TermsAgreement> agreedTerms) {
-        return memberAccountService.registerMember(
-                userInfo.provider(), userInfo.providerUserId(), userInfo.email(), name, nickname, agreedTerms);
+    public MemberInfo registerMember(OAuthUserInfo userInfo, List<TermsAgreement> agreedTerms) {
+        return memberRegistrationService.registerMember(
+                userInfo.provider(), userInfo.providerUserId(), userInfo.email(), userInfo.socialName(), agreedTerms);
     }
 
     public MemberInfo linkSocial(Long targetMemberId, OAuthUserInfo userInfo) {

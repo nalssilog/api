@@ -10,7 +10,7 @@ public record OAuthUserInfo(
         Provider provider,
         String providerUserId,
         String email,
-        String nickname
+        String socialName
 ) {
 
     private static final String EMAIL_KEY = "email";
@@ -39,14 +39,19 @@ public record OAuthUserInfo(
             }
             case NAVER -> {
                 Map<String, Object> response = (Map<String, Object>) attributes.getOrDefault("response", Map.of());
+                String name = text(response.get("name"));
 
                 yield new OAuthUserInfo(
                         provider,
                         String.valueOf(response.get("id")),
-                        (String) response.get(EMAIL_KEY),
-                        (String) response.get("nickname")
+                        text(response.get(EMAIL_KEY)),
+                        name == null || name.isBlank() ? text(response.get("nickname")) : name
                 );
             }
         };
+    }
+
+    private static String text(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 }

@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 로그인 회원의 프로필 자기관리(닉네임·아바타·소셜 연동 조회/해제). 로그인/가입/연동은 {@link MemberAccountService}. */
+/** 로그인 회원의 프로필 자기관리(이름·닉네임·아바타·소셜 연동 조회/해제). 로그인/가입/연동은 {@link MemberAccountService}. */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -30,6 +30,14 @@ public class MemberProfileService {
 
     public boolean isNicknameAvailable(String nickname) {
         return !memberRepository.existsByNickname(nickname.strip());
+    }
+
+    @Transactional
+    public MemberInfo changeName(Long memberId, String name) {
+        Member member = memberRepository.getMember(memberId);
+        member.changeName(name.strip());
+
+        return memberRepository.getMemberInfo(memberId);
     }
 
     @Transactional

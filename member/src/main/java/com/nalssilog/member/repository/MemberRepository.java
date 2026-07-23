@@ -60,6 +60,10 @@ public class MemberRepository {
         return memberJpaRepository.save(member);
     }
 
+    public Member saveAndFlush(Member member) {
+        return memberJpaRepository.saveAndFlush(member);
+    }
+
     // ===== 매핑 =====
 
     private MemberInfo toInfo(Member member) {

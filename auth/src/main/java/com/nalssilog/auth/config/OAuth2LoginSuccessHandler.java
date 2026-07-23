@@ -133,7 +133,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         String ticketId = UUID.randomUUID().toString();
 
         ticketStore.saveSignup(ticketId,
-                new SignupTicket(userInfo.provider(), userInfo.providerUserId(), userInfo.email(), userInfo.nickname()),
+                new SignupTicket(userInfo.provider(), userInfo.providerUserId(), userInfo.email(), userInfo.socialName()),
                 properties.ticket().ttl());
         cookieManager.addSignupTicketCookie(response, ticketId);
 
