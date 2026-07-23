@@ -1,6 +1,7 @@
 package com.nalssilog.auth.repository;
 
 import com.nalssilog.auth.application.dto.SessionData;
+import com.nalssilog.member.domain.Provider;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ public class RefreshTokenStore {
 
     private static final String FIELD_MEMBER_ID = "memberId";
     private static final String FIELD_SESSION_ID = "sessionId";
+    private static final String FIELD_PROVIDER = "provider";
     private static final String FIELD_DEVICE_NAME = "deviceName";
     private static final String FIELD_IP = "ip";
     private static final String FIELD_LOGIN_AT = "loginAt";
@@ -37,6 +39,7 @@ public class RefreshTokenStore {
         Map<String, String> fields = Map.of(
                 FIELD_MEMBER_ID, String.valueOf(session.memberId()),
                 FIELD_SESSION_ID, session.sessionId(),
+                FIELD_PROVIDER, session.provider().name(),
                 FIELD_DEVICE_NAME, session.deviceName(),
                 FIELD_IP, session.ip(),
                 FIELD_LOGIN_AT, String.valueOf(session.loginAt().toEpochMilli()),
@@ -64,7 +67,12 @@ public class RefreshTokenStore {
             return Optional.empty();
         }
 
-        return Optional.of(toSessionData(tokenHash, raw));
+        try {
+            return Optional.of(toSessionData(tokenHash, raw));
+        } catch (IllegalArgumentException _) {
+            // provider 필드가 없던 구버전 세션은 실제 인증 수단을 보장할 수 없으므로 재로그인시킨다.
+            return Optional.empty();
+        }
     }
 
     public void delete(String tokenHash) {
@@ -106,6 +114,7 @@ public class RefreshTokenStore {
                 tokenHash,
                 str(raw, FIELD_SESSION_ID),
                 Long.valueOf(str(raw, FIELD_MEMBER_ID)),
+                Provider.valueOf(str(raw, FIELD_PROVIDER)),
                 str(raw, FIELD_DEVICE_NAME),
                 str(raw, FIELD_IP),
                 Instant.ofEpochMilli(Long.parseLong(str(raw, FIELD_LOGIN_AT))),

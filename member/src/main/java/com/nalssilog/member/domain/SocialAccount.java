@@ -47,16 +47,30 @@ public class SocialAccount extends BaseTimeEntity {
     @Column(name = "provider_email", nullable = true, length = 255)
     private String providerEmail;
 
-    @Column(name = "last_login_at", nullable = false)
+    @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
+    /** 최초 가입은 방금 소셜 인증을 완료한 상태이므로 로그인 시각을 기록한다. */
+    public static SocialAccount register(Member member, Provider provider, String providerUserId,
+                                         String providerEmail) {
+        SocialAccount account = create(member, provider, providerUserId, providerEmail);
+        account.lastLoginAt = Instant.now();
+
+        return account;
+    }
+
+    /** 추가 연동은 로그인이 아니므로 실제로 이 제공자로 로그인하기 전까지 로그인 시각을 비워 둔다. */
     public static SocialAccount link(Member member, Provider provider, String providerUserId, String providerEmail) {
+        return create(member, provider, providerUserId, providerEmail);
+    }
+
+    private static SocialAccount create(Member member, Provider provider, String providerUserId,
+                                        String providerEmail) {
         SocialAccount account = new SocialAccount();
         account.member = member;
         account.provider = provider;
         account.providerUserId = providerUserId;
         account.providerEmail = providerEmail;
-        account.lastLoginAt = Instant.now();
 
         return account;
     }

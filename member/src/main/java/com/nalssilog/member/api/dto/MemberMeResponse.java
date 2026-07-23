@@ -23,7 +23,7 @@ public record MemberMeResponse(
     public record Avatar(AvatarType type, String value) {
     }
 
-    public static MemberMeResponse from(MemberInfo member) {
+    public static MemberMeResponse from(MemberInfo member, Provider currentProvider) {
         return new MemberMeResponse(
                 String.valueOf(member.id()),
                 member.name(),
@@ -31,7 +31,7 @@ public record MemberMeResponse(
                 member.email(),
                 new Avatar(member.avatarType(), member.avatarValue()),
                 member.connectedProviders(),
-                member.currentProvider()
+                currentProvider
         );
     }
 }

@@ -3,6 +3,8 @@ package com.nalssilog.report.config;
 import com.nalssilog.report.application.dto.ReportActor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -32,5 +34,22 @@ public class ReportActorResolver {
         return anonymousIdManager.read(request)
                 .map(ReportActor::anonymous)
                 .orElse(null);
+    }
+
+    /**
+     * 삭제 소유권 확인용 주체 목록. 로그인 전에 같은 브라우저에서 작성한 익명 제보도 삭제할 수 있게
+     * 회원 식별자와 기존 익명 쿠키를 모두 후보로 반환한다. 새 익명 쿠키는 발급하지 않는다.
+     */
+    public List<ReportActor> resolveForOwnership(Long memberId, HttpServletRequest request) {
+        List<ReportActor> actors = new ArrayList<>(2);
+
+        if (memberId != null) {
+            actors.add(ReportActor.member(memberId));
+        }
+        anonymousIdManager.read(request)
+                .map(ReportActor::anonymous)
+                .ifPresent(actors::add);
+
+        return List.copyOf(actors);
     }
 }

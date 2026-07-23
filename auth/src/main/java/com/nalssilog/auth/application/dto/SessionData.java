@@ -1,5 +1,6 @@
 package com.nalssilog.auth.application.dto;
 
+import com.nalssilog.member.domain.Provider;
 import java.time.Instant;
 
 /**
@@ -10,6 +11,7 @@ public record SessionData(
         String tokenHash,
         String sessionId,
         Long memberId,
+        Provider provider,
         String deviceName,
         String ip,
         Instant loginAt,

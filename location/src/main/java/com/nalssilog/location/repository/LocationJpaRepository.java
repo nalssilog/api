@@ -2,8 +2,10 @@ package com.nalssilog.location.repository;
 
 import com.nalssilog.location.domain.Location;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -26,14 +28,23 @@ public interface LocationJpaRepository extends JpaRepository<Location, Long> {
             """)
     List<Location> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
 
-    /**
-     * 중심좌표 기준 최근접 지역(평면 근사). 카카오 역지오코딩 도입 시 client 로 교체 가능.
-     */
-    @Query("""
-            select l from Location l
-            order by (l.latitude - :lat) * (l.latitude - :lat) + (l.longitude - :lng) * (l.longitude - :lng)
-            """)
-    List<Location> findNearest(@Param("lat") double lat, @Param("lng") double lng, Pageable pageable);
-
     List<Location> findByAdminCodeIn(List<String> adminCodes);
+
+    Optional<Location> findByAdminCode(String adminCode);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            insert into location (
+                created_at, updated_at, admin_code, sido, sigungu, dong, latitude, longitude
+            ) values (
+                current_timestamp, current_timestamp, :adminCode, :sido, :sigungu, :dong, :latitude, :longitude
+            )
+            on conflict (admin_code) do nothing
+            """, nativeQuery = true)
+    int insertIfAbsent(@Param("adminCode") String adminCode,
+                       @Param("sido") String sido,
+                       @Param("sigungu") String sigungu,
+                       @Param("dong") String dong,
+                       @Param("latitude") double latitude,
+                       @Param("longitude") double longitude);
 }

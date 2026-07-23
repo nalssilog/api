@@ -14,7 +14,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 행정동 단위 기준 지역. 위·경도는 저장하되 프론트 응답에는 노출하지 않는다(id + label 만).
+ * 법정동 단위 기준 지역. 전국 사전 데이터에는 좌표가 없고, 카카오 역지오코딩으로 생성된 행에만 존재한다.
  */
 @Entity
 @Table(name = "location",
@@ -40,14 +40,14 @@ public class Location extends BaseTimeEntity {
     @Column(name = "dong", nullable = false, length = 30)
     private String dong;
 
-    @Column(name = "latitude", nullable = false)
-    private double latitude;
+    @Column(name = "latitude")
+    private Double latitude;
 
-    @Column(name = "longitude", nullable = false)
-    private double longitude;
+    @Column(name = "longitude")
+    private Double longitude;
 
     public static Location of(String adminCode, String sido, String sigungu, String dong,
-                              double latitude, double longitude) {
+                              Double latitude, Double longitude) {
         Location location = new Location();
         location.adminCode = adminCode;
         location.sido = sido;

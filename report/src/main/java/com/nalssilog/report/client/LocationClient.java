@@ -35,6 +35,7 @@ public class LocationClient {
     }
 
     private LocationSummary toSummary(LocationInfo info) {
-        return new LocationSummary(info.id(), info.sido(), info.sigungu(), info.dong(), info.label());
+        return new LocationSummary(
+                info.id(), info.sido(), info.sigungu(), info.dong(), info.label(), info.shortLabel());
     }
 }

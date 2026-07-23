@@ -25,8 +25,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member extends BaseTimeEntity {
 
+    public static final int NAME_MAX_LENGTH = 30;
     public static final int NICKNAME_MAX_LENGTH = 10;
     public static final int NICKNAME_MIN_LENGTH = 2;
+    public static final int NICKNAME_STORAGE_MAX_LENGTH = 20;
     /** 허용 문자: 한글(완성형)·영문 대소문자·숫자만. 공백·특수문자 불가. (길이는 @Size 로 별도 검증) */
     public static final String NICKNAME_PATTERN = "^[가-힣a-zA-Z0-9]+$";
 
@@ -40,10 +42,10 @@ public class Member extends BaseTimeEntity {
     @Column(name = "email", nullable = true, length = 255)
     private String email;
 
-    @Column(name = "name", nullable = true, length = 30)
+    @Column(name = "name", nullable = true, length = NAME_MAX_LENGTH)
     private String name;
 
-    @Column(name = "nickname", nullable = true, length = NICKNAME_MAX_LENGTH)
+    @Column(name = "nickname", nullable = true, length = NICKNAME_STORAGE_MAX_LENGTH)
     private String nickname;
 
     @Enumerated(EnumType.STRING)
@@ -75,6 +77,10 @@ public class Member extends BaseTimeEntity {
 
     public void changeNickname(String nickname) {
         this.nickname = nickname;
+    }
+
+    public void changeName(String name) {
+        this.name = name;
     }
 
     public void changeAvatar(AvatarType avatarType, String avatarValue) {

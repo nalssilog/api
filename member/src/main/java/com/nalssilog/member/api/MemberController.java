@@ -3,6 +3,7 @@ package com.nalssilog.member.api;
 import com.nalssilog.member.api.dto.AvatarPresignRequest;
 import com.nalssilog.member.api.dto.AvatarPresignResponse;
 import com.nalssilog.member.api.dto.ChangeAvatarRequest;
+import com.nalssilog.member.api.dto.ChangeNameRequest;
 import com.nalssilog.member.api.dto.ChangeNicknameRequest;
 import com.nalssilog.member.api.dto.MemberMeResponse;
 import com.nalssilog.member.api.dto.MemberPublicProfileResponse;
@@ -15,6 +16,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,8 +42,8 @@ public class MemberController {
     }
 
     @GetMapping("/me")
-    public MemberMeResponse me(@AuthenticationPrincipal Long memberId) {
-        return MemberMeResponse.from(memberProfileService.getMe(memberId));
+    public MemberMeResponse me(@AuthenticationPrincipal Long memberId, Authentication authentication) {
+        return MemberMeResponse.from(memberProfileService.getMe(memberId), currentProvider(authentication));
     }
 
     @GetMapping("/{id}")
@@ -49,17 +51,29 @@ public class MemberController {
         return MemberPublicProfileResponse.from(memberProfileService.getPublicProfile(id));
     }
 
+    @PatchMapping("/me/name")
+    public MemberMeResponse changeName(@AuthenticationPrincipal Long memberId,
+                                       Authentication authentication,
+                                       @Valid @RequestBody ChangeNameRequest request) {
+        return MemberMeResponse.from(
+                memberProfileService.changeName(memberId, request.name()), currentProvider(authentication));
+    }
+
     @PatchMapping("/me/nickname")
     public MemberMeResponse changeNickname(@AuthenticationPrincipal Long memberId,
+                                           Authentication authentication,
                                            @Valid @RequestBody ChangeNicknameRequest request) {
-        return MemberMeResponse.from(memberProfileService.changeNickname(memberId, request.nickname()));
+        return MemberMeResponse.from(
+                memberProfileService.changeNickname(memberId, request.nickname()), currentProvider(authentication));
     }
 
     @PatchMapping("/me/avatar")
     public MemberMeResponse changeAvatar(@AuthenticationPrincipal Long memberId,
+                                         Authentication authentication,
                                          @Valid @RequestBody ChangeAvatarRequest request) {
         return MemberMeResponse.from(
-                memberProfileService.changeAvatar(memberId, request.type(), request.value()));
+                memberProfileService.changeAvatar(memberId, request.type(), request.value()),
+                currentProvider(authentication));
     }
 
     /**
@@ -81,7 +95,17 @@ public class MemberController {
 
     @DeleteMapping("/me/social-accounts/{provider}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void unlinkSocial(@AuthenticationPrincipal Long memberId, @PathVariable String provider) {
-        memberProfileService.unlinkSocial(memberId, Provider.from(provider));
+    public void unlinkSocial(@AuthenticationPrincipal Long memberId, Authentication authentication,
+                             @PathVariable String provider) {
+        memberProfileService.unlinkSocial(
+                memberId, Provider.from(provider), currentProvider(authentication));
+    }
+
+    private Provider currentProvider(Authentication authentication) {
+        if (authentication.getDetails() instanceof Provider provider) {
+            return provider;
+        }
+
+        throw new IllegalStateException("Authenticated provider is missing");
     }
 }

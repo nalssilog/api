@@ -21,7 +21,14 @@ public record WeatherStatsResponse(
         Axis sunlight
 ) {
 
-    public record Location(String id, String sido, String sigungu, String dong, String label) {
+    public record Location(
+            String id,
+            String sido,
+            String sigungu,
+            String dong,
+            String label,
+            String shortLabel
+    ) {
     }
 
     public record Axis(String dominant, Map<String, Long> distribution) {
@@ -29,7 +36,12 @@ public record WeatherStatsResponse(
 
     public static WeatherStatsResponse of(LocationSummary location, WeatherStatsData stats) {
         Location locationDto = new Location(
-                String.valueOf(location.id()), location.sido(), location.sigungu(), location.dong(), location.label());
+                String.valueOf(location.id()),
+                location.sido(),
+                location.sigungu(),
+                location.dong(),
+                location.label(),
+                location.shortLabel());
 
         return new WeatherStatsResponse(
                 locationDto,

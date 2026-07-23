@@ -1,5 +1,7 @@
 package com.nalssilog.auth.config;
 
+import static com.nalssilog.auth.application.CustomOAuth2UserService.EMAIL_REQUIRED_ERROR;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -30,9 +32,12 @@ public class OAuth2LoginFailureHandler implements AuthenticationFailureHandler {
     }
 
     private String resolveCode(AuthenticationException exception) {
-        if (exception instanceof OAuth2AuthenticationException oauthException
-                && "access_denied".equals(oauthException.getError().getErrorCode())) {
-            return "OAUTH_CANCELLED";
+        if (exception instanceof OAuth2AuthenticationException oauthException) {
+            return switch (oauthException.getError().getErrorCode()) {
+                case "access_denied" -> "OAUTH_CANCELLED";
+                case EMAIL_REQUIRED_ERROR -> "OAUTH_EMAIL_REQUIRED";
+                default -> "OAUTH_FAILED";
+            };
         }
 
         return "OAUTH_FAILED";

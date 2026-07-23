@@ -58,6 +58,12 @@ public class ImageStorageClient {
         return objectStorage.publicUrl(storageKey);
     }
 
+    public void delete(String storageKey) {
+        if (objectStorage.isVerifyEnabled()) {
+            objectStorage.delete(storageKey);
+        }
+    }
+
     /** 넘어온 key 가 우리가 발급한 prefix 형식인지 검증(임의 key 저장 방지). */
     public void validateKey(String storageKey) {
         if (storageKey == null || !storageKey.startsWith(properties.keyPrefix() + "/")) {

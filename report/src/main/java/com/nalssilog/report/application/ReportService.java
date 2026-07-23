@@ -1,5 +1,6 @@
 package com.nalssilog.report.application;
 
+import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.common.response.CursorPage;
 import com.nalssilog.report.api.dto.ReportResponse;
 import com.nalssilog.report.api.dto.ThanksResponse;
@@ -14,15 +15,20 @@ import com.nalssilog.report.client.ImageStorageClient;
 import com.nalssilog.report.client.LocationClient;
 import com.nalssilog.report.client.MemberClient;
 import com.nalssilog.report.domain.ActorType;
+import com.nalssilog.report.domain.ReportErrorCode;
 import com.nalssilog.report.domain.WeatherReport;
+import com.nalssilog.report.domain.WeatherReportImage;
+import com.nalssilog.report.domain.event.ReportDeletedEvent;
 import com.nalssilog.report.repository.ThanksRepository;
 import com.nalssilog.report.repository.WeatherReportRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +46,7 @@ public class ReportService {
     private final MemberClient memberClient;
     private final LocationClient locationClient;
     private final ImageStorageClient imageStorageClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ReportResponse create(ReportActor actor, CreateReportCommand command) {
@@ -56,10 +63,11 @@ public class ReportService {
         report.addImages(command.imageKeys());
         ReportData data = reportRepository.save(report);
 
-        return ReportResponse.of(data, location, resolveAuthor(data), 0L, false, resolveImageUrls(data));
+        return ReportResponse.of(data, location, resolveAuthor(data), 0L, false, true, resolveImageUrls(data));
     }
 
-    public CursorPage<ReportResponse> list(Long locationId, String cursor, ReportActor viewer) {
+    public CursorPage<ReportResponse> list(Long locationId, String cursor, ReportActor viewer,
+                                           List<ReportActor> ownershipActors) {
         CursorCodec.Cursor decoded = cursor == null ? null : CursorCodec.decode(cursor);
         Instant cursorTime = decoded == null ? null : decoded.createdAt();
         Long cursorId = decoded == null ? null : decoded.id();
@@ -80,7 +88,10 @@ public class ReportService {
 
         List<ReportResponse> items = page.stream()
                 .map(data -> ReportResponse.of(data, location, resolveAuthor(data),
-                        counts.getOrDefault(data.id(), 0L), thanked.contains(data.id()), resolveImageUrls(data)))
+                        counts.getOrDefault(data.id(), 0L),
+                        thanked.contains(data.id()),
+                        isAuthor(data, ownershipActors),
+                        resolveImageUrls(data)))
                 .toList();
 
         ReportData lastItem = page.get(page.size() - 1);
@@ -93,7 +104,8 @@ public class ReportService {
      * 특정 회원이 작성한 제보 목록(내 제보 / 회원별 제보 공용). 여러 지역에 걸치므로 지역은 배치로 enrich 한다.
      * 대상 회원이 탈퇴 상태면 작성자 정보는 노출하지 않고 "익명 이웃"으로 렌더된다.
      */
-    public CursorPage<ReportResponse> listByMember(Long memberId, String cursor, ReportActor viewer) {
+    public CursorPage<ReportResponse> listByMember(Long memberId, String cursor, ReportActor viewer,
+                                                   List<ReportActor> ownershipActors) {
         CursorCodec.Cursor decoded = cursor == null ? null : CursorCodec.decode(cursor);
         Instant cursorTime = decoded == null ? null : decoded.createdAt();
         Long cursorId = decoded == null ? null : decoded.id();
@@ -115,7 +127,10 @@ public class ReportService {
 
         List<ReportResponse> items = page.stream()
                 .map(data -> ReportResponse.of(data, locations.get(data.locationId()), author,
-                        counts.getOrDefault(data.id(), 0L), thanked.contains(data.id()), resolveImageUrls(data)))
+                        counts.getOrDefault(data.id(), 0L),
+                        thanked.contains(data.id()),
+                        isAuthor(data, ownershipActors),
+                        resolveImageUrls(data)))
                 .toList();
 
         ReportData lastItem = page.get(page.size() - 1);
@@ -135,13 +150,20 @@ public class ReportService {
         return WeatherStatsResponse.of(location, stats);
     }
 
-    public ReportResponse get(Long reportId, ReportActor viewer) {
+    public ReportResponse get(Long reportId, ReportActor viewer, List<ReportActor> ownershipActors) {
         ReportData data = reportRepository.getReport(reportId);
         LocationSummary location = locationClient.getLocation(data.locationId());
         long thanksCount = thanksRepository.count(reportId);
         boolean isThanked = viewer != null && thanksRepository.isThanked(reportId, viewer);
 
-        return ReportResponse.of(data, location, resolveAuthor(data), thanksCount, isThanked, resolveImageUrls(data));
+        return ReportResponse.of(
+                data,
+                location,
+                resolveAuthor(data),
+                thanksCount,
+                isThanked,
+                isAuthor(data, ownershipActors),
+                resolveImageUrls(data));
     }
 
     @Transactional
@@ -160,6 +182,23 @@ public class ReportService {
         return new ThanksResponse(thanksRepository.count(reportId), false);
     }
 
+    @Transactional
+    public void delete(Long reportId, List<ReportActor> actors) {
+        WeatherReport report = reportRepository.getReportEntity(reportId);
+
+        if (actors.stream().noneMatch(actor -> isAuthor(report, actor))) {
+            throw new NalssiLogException(ReportErrorCode.REPORT_DELETE_FORBIDDEN);
+        }
+
+        List<String> imageKeys = report.getImages().stream()
+                .map(WeatherReportImage::getStorageKey)
+                .toList();
+
+        thanksRepository.deleteAllByReportId(reportId);
+        reportRepository.delete(report);
+        eventPublisher.publishEvent(new ReportDeletedEvent(imageKeys));
+    }
+
     private List<String> resolveImageUrls(ReportData data) {
         return data.imageKeys().stream()
                 .map(imageStorageClient::toPublicUrl)
@@ -172,5 +211,27 @@ public class ReportService {
         }
 
         return memberClient.findActiveAuthor(data.authorMemberId()).orElse(null);
+    }
+
+    private boolean isAuthor(WeatherReport report, ReportActor actor) {
+        if (report.getAuthorType() != actor.type()) {
+            return false;
+        }
+
+        return actor.type() == ActorType.MEMBER
+                ? Objects.equals(report.getAuthorMemberId(), actor.memberId())
+                : Objects.equals(report.getAuthorAnonymousKey(), actor.anonymousKey());
+    }
+
+    private boolean isAuthor(ReportData data, List<ReportActor> actors) {
+        return actors.stream().anyMatch(actor -> {
+            if (data.authorType() != actor.type()) {
+                return false;
+            }
+
+            return actor.type() == ActorType.MEMBER
+                    ? Objects.equals(data.authorMemberId(), actor.memberId())
+                    : Objects.equals(data.authorAnonymousKey(), actor.anonymousKey());
+        });
     }
 }

@@ -29,6 +29,10 @@ public class ThanksRepository {
         thanksJpaRepository.deleteByReportIdAndActorTypeAndActorKey(reportId, actor.type(), actor.actorKey());
     }
 
+    public void deleteAllByReportId(Long reportId) {
+        thanksJpaRepository.deleteByReportId(reportId);
+    }
+
     public long count(Long reportId) {
         return thanksJpaRepository.countByReportId(reportId);
     }

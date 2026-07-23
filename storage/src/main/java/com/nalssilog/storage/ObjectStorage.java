@@ -55,6 +55,13 @@ public class ObjectStorage {
         return presigned.url().toString();
     }
 
+    /** 오브젝트가 이미 없어도 성공하는 S3 호환 멱등 삭제. */
+    public void delete(String storageKey) {
+        s3Client.deleteObject(delete -> delete
+                .bucket(properties.r2().bucket())
+                .key(storageKey));
+    }
+
     /** storageKey → 공개 URL. publicBaseUrl 미설정(placeholder)이면 key 그대로 반환. */
     public String publicUrl(String storageKey) {
         if (storageKey == null || properties.publicBaseUrl() == null) {

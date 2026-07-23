@@ -7,13 +7,12 @@ on:
     types: [completed]
     branches: [main]
 
-concurrency:
-  group: cd-prod
-  cancel-in-progress: true
-
 jobs:
   deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    concurrency:
+      group: cd-prod
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: read

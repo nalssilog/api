@@ -1,11 +1,19 @@
 package com.nalssilog.location.application;
 
+import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.location.application.dto.LocationInfo;
+import com.nalssilog.location.client.KakaoMapClient;
+import com.nalssilog.location.client.KakaoRegion;
 import com.nalssilog.location.config.LocationProperties;
+import com.nalssilog.location.domain.LocationErrorCode;
 import com.nalssilog.location.repository.LocationRepository;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -21,6 +29,7 @@ public class LocationService {
     private final LocationRepository locationRepository;
     private final PopularLocationSource popularLocationSource;
     private final LocationProperties properties;
+    private final KakaoMapClient kakaoMapClient;
 
     public List<LocationInfo> search(String keyword) {
         return locationRepository.searchByKeyword(keyword.strip());
@@ -37,19 +46,43 @@ public class LocationService {
         return locationRepository.findByIds(locationIds);
     }
 
-    /** GPS 좌표 → 행정동. 현재는 중심좌표 기준 평면 최근접(카카오 역지오코딩으로 교체 가능). */
+    /** GPS 좌표를 카카오맵 법정동으로 변환하고, 서비스에서 사용할 Location 을 조회하거나 등록한다. */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public LocationInfo reverseGeocode(double latitude, double longitude) {
-        return locationRepository.findNearest(latitude, longitude);
+        validateCoordinates(latitude, longitude);
+        KakaoRegion region = kakaoMapClient.reverseGeocode(latitude, longitude);
+
+        return locationRepository.findOrCreate(region);
     }
 
-    /** 인기 동네 top5(제보 활동 기반, report 가 PopularLocationSource 로 공급). 제보 없으면 설정된 대표 지역 fallback. */
+    /** 인기 동네 top5. 최근 제보 지역을 우선하고 부족한 자리는 설정된 대표 지역으로 중복 없이 채운다. */
     public List<LocationInfo> getPopular() {
         List<Long> popularIds = popularLocationSource.topLocationIds(POPULAR_SIZE);
+        List<LocationInfo> result = new ArrayList<>(locationRepository.findByIds(popularIds));
 
-        if (popularIds.isEmpty()) {
-            return locationRepository.findByAdminCodes(properties.featuredAdminCodes());
+        if (result.size() >= POPULAR_SIZE) {
+            return List.copyOf(result.subList(0, POPULAR_SIZE));
         }
 
-        return locationRepository.findByIds(popularIds);
+        Set<Long> addedIds = new HashSet<>();
+        result.forEach(location -> addedIds.add(location.id()));
+
+        for (LocationInfo featured : locationRepository.findByAdminCodes(properties.featuredAdminCodes())) {
+            if (addedIds.add(featured.id())) {
+                result.add(featured);
+            }
+            if (result.size() == POPULAR_SIZE) {
+                break;
+            }
+        }
+
+        return List.copyOf(result);
+    }
+
+    private static void validateCoordinates(double latitude, double longitude) {
+        if (!Double.isFinite(latitude) || latitude < -90 || latitude > 90
+                || !Double.isFinite(longitude) || longitude < -180 || longitude > 180) {
+            throw new NalssiLogException(LocationErrorCode.INVALID_COORDINATES);
+        }
     }
 }

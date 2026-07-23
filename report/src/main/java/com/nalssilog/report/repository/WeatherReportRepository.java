@@ -38,9 +38,17 @@ public class WeatherReportRepository {
     }
 
     public ReportData getReport(Long reportId) {
+        return ReportData.of(getReportEntity(reportId));
+    }
+
+    /** 삭제처럼 관리 엔티티가 필요한 쓰기 유스케이스 전용. 반드시 트랜잭션 안에서 사용한다. */
+    public WeatherReport getReportEntity(Long reportId) {
         return weatherReportJpaRepository.findById(reportId)
-                .map(ReportData::of)
                 .orElseThrow(() -> new NalssiLogException(ReportErrorCode.REPORT_NOT_FOUND));
+    }
+
+    public void delete(WeatherReport report) {
+        weatherReportJpaRepository.delete(report);
     }
 
     public List<ReportData> findPage(Long locationId, Instant since, Instant cursorTime, Long cursorId, int limit) {
