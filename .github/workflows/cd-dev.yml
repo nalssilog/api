@@ -1,0 +1,180 @@
+name: CD (dev)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [develop]
+
+concurrency:
+  group: cd-dev
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Checkout config submodule
+        env:
+          SUBMODULE_PAT: ${{ secrets.SUBMODULE_PAT }}
+        run: |
+          if [ -z "$SUBMODULE_PAT" ]; then
+            echo "Missing required secret: SUBMODULE_PAT"
+            exit 1
+          fi
+          AUTH_HEADER=$(printf 'x-access-token:%s' "$SUBMODULE_PAT" | base64 | tr -d '\n')
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $AUTH_HEADER" submodule update --init --recursive
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+
+      - name: Build bootJar
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:bootJar
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push image (arm64, :dev)
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ghcr.io/nalssilog/api:dev
+
+      - name: Open SSH (add runner IP to SG)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          IP=$(curl -s https://checkip.amazonaws.com)
+          echo "RUNNER_IP=$IP" >> "$GITHUB_ENV"
+          aws ec2 authorize-security-group-ingress --group-id "${{ secrets.AWS_SG_ID }}" --protocol tcp --port 22 --cidr "$IP/32"
+
+      - name: Copy compose + config to EC2
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST_DEV }}
+          username: ${{ secrets.EC2_USER_DEV }}
+          key: ${{ secrets.EC2_SSH_KEY_DEV }}
+          source: "deploy/compose-dev.yml"
+          target: /home/ubuntu/nalssilog-dev-api
+          strip_components: 1
+
+      - name: Copy config (submodule) to EC2
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST_DEV }}
+          username: ${{ secrets.EC2_USER_DEV }}
+          key: ${{ secrets.EC2_SSH_KEY_DEV }}
+          source: "config/"
+          target: /home/ubuntu/nalssilog-dev-api/config
+          strip_components: 1
+
+      - name: Write .env.dev & deploy on EC2
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DB_HOST: ${{ secrets.DEV_DB_HOST }}
+          DB_PORT: ${{ secrets.DEV_DB_PORT }}
+          DB_NAME: ${{ secrets.DEV_DB_NAME }}
+          DB_USERNAME: ${{ secrets.DEV_DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DEV_DB_PASSWORD }}
+          OAUTH_GOOGLE_CLIENT_ID: ${{ secrets.OAUTH_GOOGLE_CLIENT_ID }}
+          OAUTH_GOOGLE_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_CLIENT_SECRET }}
+          OAUTH_KAKAO_CLIENT_ID: ${{ secrets.OAUTH_KAKAO_CLIENT_ID }}
+          OAUTH_KAKAO_CLIENT_SECRET: ${{ secrets.OAUTH_KAKAO_CLIENT_SECRET }}
+          DEV_R2_PUBLIC_BASE_URL: ${{ secrets.DEV_R2_PUBLIC_BASE_URL }}
+          DEV_R2_ENDPOINT: ${{ secrets.DEV_R2_ENDPOINT }}
+          DEV_R2_BUCKET: ${{ secrets.DEV_R2_BUCKET }}
+          DEV_R2_ACCESS_KEY: ${{ secrets.DEV_R2_ACCESS_KEY }}
+          DEV_R2_SECRET_KEY: ${{ secrets.DEV_R2_SECRET_KEY }}
+        with:
+          host: ${{ secrets.EC2_HOST_DEV }}
+          username: ${{ secrets.EC2_USER_DEV }}
+          key: ${{ secrets.EC2_SSH_KEY_DEV }}
+          envs: GHCR_USERNAME,GHCR_TOKEN,DB_HOST,DB_PORT,DB_NAME,DB_USERNAME,DB_PASSWORD,OAUTH_GOOGLE_CLIENT_ID,OAUTH_GOOGLE_CLIENT_SECRET,OAUTH_KAKAO_CLIENT_ID,OAUTH_KAKAO_CLIENT_SECRET,DEV_R2_PUBLIC_BASE_URL,DEV_R2_ENDPOINT,DEV_R2_BUCKET,DEV_R2_ACCESS_KEY,DEV_R2_SECRET_KEY
+          script: |
+            set -eu
+            cd /home/ubuntu/nalssilog-dev-api
+            for name in GHCR_USERNAME GHCR_TOKEN DB_HOST DB_PORT DB_NAME DB_USERNAME DB_PASSWORD DEV_R2_PUBLIC_BASE_URL DEV_R2_ENDPOINT DEV_R2_BUCKET DEV_R2_ACCESS_KEY DEV_R2_SECRET_KEY; do
+              if [ -z "$(printenv "$name")" ]; then
+                echo "Missing required deployment value: $name"
+                exit 1
+              fi
+            done
+            umask 077
+            cat > .env.dev <<EOF
+            DEV_DB_URL=jdbc:postgresql://$DB_HOST:$DB_PORT/$DB_NAME?sslmode=require
+            DEV_DB_USERNAME=$DB_USERNAME
+            DEV_DB_PASSWORD=$DB_PASSWORD
+            OAUTH_GOOGLE_CLIENT_ID=${OAUTH_GOOGLE_CLIENT_ID:-dummy}
+            OAUTH_GOOGLE_CLIENT_SECRET=${OAUTH_GOOGLE_CLIENT_SECRET:-dummy}
+            OAUTH_KAKAO_CLIENT_ID=${OAUTH_KAKAO_CLIENT_ID:-dummy}
+            OAUTH_KAKAO_CLIENT_SECRET=${OAUTH_KAKAO_CLIENT_SECRET:-dummy}
+            DEV_R2_PUBLIC_BASE_URL=$DEV_R2_PUBLIC_BASE_URL
+            DEV_R2_ENDPOINT=$DEV_R2_ENDPOINT
+            DEV_R2_BUCKET=$DEV_R2_BUCKET
+            DEV_R2_ACCESS_KEY=$DEV_R2_ACCESS_KEY
+            DEV_R2_SECRET_KEY=$DEV_R2_SECRET_KEY
+            EOF
+            mkdir -p logs
+            sudo chown 10001:10001 logs
+            sudo chmod 0755 logs
+            echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
+            trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+            docker compose -f compose-dev.yml pull
+            docker compose -f compose-dev.yml up -d
+            healthy=false
+            for attempt in $(seq 1 30); do
+              if curl --fail --silent --max-time 3 http://127.0.0.1:8080/api/health >/dev/null; then
+                healthy=true
+                break
+              fi
+              if [ "$(docker inspect -f '{{.State.Running}}' nalssilog-app-dev 2>/dev/null || echo false)" != "true" ]; then
+                break
+              fi
+              sleep 2
+            done
+            if [ "$healthy" != "true" ]; then
+              echo "Dev application health check failed"
+              docker logs --tail 200 nalssilog-app-dev || true
+              exit 1
+            fi
+            docker image prune -f
+
+      - name: Close SSH (revoke runner IP)
+        if: always()
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          aws ec2 revoke-security-group-ingress --group-id "${{ secrets.AWS_SG_ID }}" --protocol tcp --port 22 --cidr "$RUNNER_IP/32" || true
