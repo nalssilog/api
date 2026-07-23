@@ -15,5 +15,6 @@ services:
       - .env.prod
     volumes:
       - ./config:/config:ro
+      - ./logs:/app/logs
     ports:
       - "127.0.0.1:8081:8080"   # 호스트 nginx 만 접근
