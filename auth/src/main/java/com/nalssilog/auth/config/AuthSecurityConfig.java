@@ -72,6 +72,7 @@ public class AuthSecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/feedbacks").permitAll()
                         // 익명 제보·감사해요 허용 (익명 UUID 쿠키로 식별)
                         .requestMatchers(HttpMethod.POST, "/api/reports/**").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/reports/*").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/reports/*/thanks").permitAll()
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2

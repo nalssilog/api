@@ -7,7 +7,10 @@ import com.nalssilog.location.client.KakaoRegion;
 import com.nalssilog.location.config.LocationProperties;
 import com.nalssilog.location.domain.LocationErrorCode;
 import com.nalssilog.location.repository.LocationRepository;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -52,15 +55,28 @@ public class LocationService {
         return locationRepository.findOrCreate(region);
     }
 
-    /** 인기 동네 top5(제보 활동 기반, report 가 PopularLocationSource 로 공급). 제보 없으면 설정된 대표 지역 fallback. */
+    /** 인기 동네 top5. 최근 제보 지역을 우선하고 부족한 자리는 설정된 대표 지역으로 중복 없이 채운다. */
     public List<LocationInfo> getPopular() {
         List<Long> popularIds = popularLocationSource.topLocationIds(POPULAR_SIZE);
+        List<LocationInfo> result = new ArrayList<>(locationRepository.findByIds(popularIds));
 
-        if (popularIds.isEmpty()) {
-            return locationRepository.findByAdminCodes(properties.featuredAdminCodes());
+        if (result.size() >= POPULAR_SIZE) {
+            return List.copyOf(result.subList(0, POPULAR_SIZE));
         }
 
-        return locationRepository.findByIds(popularIds);
+        Set<Long> addedIds = new HashSet<>();
+        result.forEach(location -> addedIds.add(location.id()));
+
+        for (LocationInfo featured : locationRepository.findByAdminCodes(properties.featuredAdminCodes())) {
+            if (addedIds.add(featured.id())) {
+                result.add(featured);
+            }
+            if (result.size() == POPULAR_SIZE) {
+                break;
+            }
+        }
+
+        return List.copyOf(result);
     }
 
     private static void validateCoordinates(double latitude, double longitude) {

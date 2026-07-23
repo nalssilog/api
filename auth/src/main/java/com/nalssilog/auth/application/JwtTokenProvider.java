@@ -2,6 +2,7 @@ package com.nalssilog.auth.application;
 
 import com.nalssilog.auth.config.AuthProperties;
 import com.nalssilog.member.domain.MemberStatus;
+import com.nalssilog.member.domain.Provider;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -35,12 +36,13 @@ public class JwtTokenProvider {
         this.accessTokenTtl = properties.jwt().accessTokenTtl();
     }
 
-    public String createAccessToken(Long memberId, MemberStatus status) {
+    public String createAccessToken(Long memberId, MemberStatus status, Provider provider) {
         Instant now = Instant.now();
 
         return Jwts.builder()
                 .subject(String.valueOf(memberId))
                 .claim("status", status.name())
+                .claim("provider", provider.name())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(accessTokenTtl)))
                 .signWith(key)
@@ -54,16 +56,23 @@ public class JwtTokenProvider {
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
+            String status = claims.get("status", String.class);
+            String provider = claims.get("provider", String.class);
+
+            if (status == null || provider == null) {
+                return Optional.empty();
+            }
 
             return Optional.of(new AccessTokenPayload(
                     Long.parseLong(claims.getSubject()),
-                    MemberStatus.valueOf(claims.get("status", String.class))
+                    MemberStatus.valueOf(status),
+                    Provider.valueOf(provider)
             ));
         } catch (JwtException | IllegalArgumentException _) {
             return Optional.empty();
         }
     }
 
-    public record AccessTokenPayload(Long memberId, MemberStatus status) {
+    public record AccessTokenPayload(Long memberId, MemberStatus status, Provider provider) {
     }
 }

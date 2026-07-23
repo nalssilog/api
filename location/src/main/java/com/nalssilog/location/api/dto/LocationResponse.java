@@ -3,7 +3,7 @@ package com.nalssilog.location.api.dto;
 import com.nalssilog.location.application.dto.LocationInfo;
 
 /**
- * 프론트 응답. 위경도는 노출하지 않고, 시도/시군구/동을 분리해 주며 label 은 조합된 풀 문자열.
+ * 프론트 응답. label 은 전체 주소, shortLabel 은 시도를 제외한 축약 주소다.
  * id 는 JS 안전 정수 초과 방지를 위해 문자열로 내려준다.
  */
 public record LocationResponse(
@@ -11,11 +11,17 @@ public record LocationResponse(
         String sido,
         String sigungu,
         String dong,
-        String label
+        String label,
+        String shortLabel
 ) {
 
     public static LocationResponse from(LocationInfo info) {
         return new LocationResponse(
-                String.valueOf(info.id()), info.sido(), info.sigungu(), info.dong(), info.label());
+                String.valueOf(info.id()),
+                info.sido(),
+                info.sigungu(),
+                info.dong(),
+                info.label(),
+                info.shortLabel());
     }
 }

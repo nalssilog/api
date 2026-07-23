@@ -9,6 +9,7 @@ import com.nalssilog.auth.repository.RefreshTokenStore;
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.member.application.dto.MemberInfo;
 import com.nalssilog.member.domain.MemberStatus;
+import com.nalssilog.member.domain.Provider;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -32,8 +33,9 @@ public class AuthTokenService {
     private final AuthProperties properties;
 
     /** 새 로그인 세션 발급(새 sessionId + 기기 정보 저장). */
-    public TokenPair issue(Long memberId, MemberStatus status, DeviceInfo device) {
-        return issueWithSession(memberId, status, UUID.randomUUID().toString(), Instant.now(), device);
+    public TokenPair issue(Long memberId, MemberStatus status, Provider provider, DeviceInfo device) {
+        return issueWithSession(
+                memberId, status, provider, UUID.randomUUID().toString(), Instant.now(), device);
     }
 
     /** rotation: 토큰만 교체하고 기기 정체성(sessionId·loginAt·deviceName)은 유지, lastActiveAt·ip 갱신. */
@@ -49,7 +51,8 @@ public class AuthTokenService {
 
         DeviceInfo preserved = new DeviceInfo(current.deviceName(), device.ip());
 
-        return issueWithSession(member.id(), member.status(), current.sessionId(), current.loginAt(), preserved);
+        return issueWithSession(
+                member.id(), member.status(), current.provider(), current.sessionId(), current.loginAt(), preserved);
     }
 
     public void revoke(String refreshToken) {
@@ -66,13 +69,13 @@ public class AuthTokenService {
         refreshTokenStore.deleteAllByMember(memberId);
     }
 
-    private TokenPair issueWithSession(Long memberId, MemberStatus status, String sessionId,
+    private TokenPair issueWithSession(Long memberId, MemberStatus status, Provider provider, String sessionId,
                                        Instant loginAt, DeviceInfo device) {
-        String accessToken = jwtTokenProvider.createAccessToken(memberId, status);
+        String accessToken = jwtTokenProvider.createAccessToken(memberId, status, provider);
         String refreshToken = generateRefreshToken();
         String tokenHash = hash(refreshToken);
         SessionData session = new SessionData(
-                tokenHash, sessionId, memberId, device.deviceName(), device.ip(), loginAt, Instant.now());
+                tokenHash, sessionId, memberId, provider, device.deviceName(), device.ip(), loginAt, Instant.now());
 
         refreshTokenStore.save(tokenHash, session, properties.jwt().refreshTokenTtl());
 

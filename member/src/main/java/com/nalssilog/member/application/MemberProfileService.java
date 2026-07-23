@@ -95,9 +95,13 @@ public class MemberProfileService {
     }
 
     @Transactional
-    public void unlinkSocial(Long memberId, Provider provider) {
+    public void unlinkSocial(Long memberId, Provider provider, Provider currentProvider) {
         SocialAccount account = socialAccountRepository.findByMemberIdAndProvider(memberId, provider)
                 .orElseThrow(() -> new NalssiLogException(MemberErrorCode.SOCIAL_ACCOUNT_NOT_FOUND));
+
+        if (provider == currentProvider) {
+            throw new NalssiLogException(MemberErrorCode.CURRENT_LOGIN_PROVIDER);
+        }
 
         if (socialAccountRepository.countByMemberId(memberId) <= 1) {
             throw new NalssiLogException(MemberErrorCode.LAST_SOCIAL_ACCOUNT);

@@ -18,6 +18,8 @@ public interface ThanksJpaRepository extends JpaRepository<Thanks, Long> {
 
     long deleteByReportIdAndActorTypeAndActorKey(Long reportId, ActorType actorType, String actorKey);
 
+    long deleteByReportId(Long reportId);
+
     long countByReportId(Long reportId);
 
     @Query("""

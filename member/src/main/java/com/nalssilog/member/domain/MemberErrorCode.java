@@ -19,6 +19,8 @@ public enum MemberErrorCode implements ErrorCode {
     ACCOUNT_ALREADY_LINKED("ACCOUNT_ALREADY_LINKED", "이미 연동된 소셜 계정입니다.", HttpStatus.CONFLICT),
     SOCIAL_ACCOUNT_NOT_FOUND("SOCIAL_ACCOUNT_NOT_FOUND", "연동되지 않은 소셜 계정입니다.", HttpStatus.NOT_FOUND),
     LAST_SOCIAL_ACCOUNT("LAST_SOCIAL_ACCOUNT", "마지막 로그인 수단은 연동 해제할 수 없습니다.", HttpStatus.CONFLICT),
+    CURRENT_LOGIN_PROVIDER("CURRENT_LOGIN_PROVIDER", "현재 로그인에 사용 중인 소셜 계정은 연동 해제할 수 없습니다.",
+            HttpStatus.CONFLICT),
     INVALID_AVATAR("INVALID_AVATAR", "아바타 정보가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
     UNSUPPORTED_IMAGE_TYPE("UNSUPPORTED_IMAGE_TYPE", "지원하지 않는 이미지 형식입니다.", HttpStatus.BAD_REQUEST),
     IMAGE_TOO_LARGE("IMAGE_TOO_LARGE", "이미지는 2MB 이하여야 합니다.", HttpStatus.BAD_REQUEST),

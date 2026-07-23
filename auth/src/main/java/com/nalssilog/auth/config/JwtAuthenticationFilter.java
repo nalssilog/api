@@ -35,6 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             payload.memberId(),
                             null,
                             List.of(new SimpleGrantedAuthority(SocialAuthPrincipal.roleOf(payload.status()))));
+                    authentication.setDetails(payload.provider());
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     // STATELESS 라 체인 종료 후 SecurityContext 가 비므로, 액세스 로그용으로 memberId 를 남겨둔다.
                     request.setAttribute(RequestLoggingFilter.ACTOR_MEMBER_ID, payload.memberId());

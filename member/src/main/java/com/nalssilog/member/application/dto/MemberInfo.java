@@ -10,6 +10,7 @@ import java.util.List;
 
 /**
  * member 모듈이 외부(다른 모듈)에 제공하는 회원 정보 계약.
+ * lastLoginProvider 는 계정 전체의 최근 로그인 이력이며, 현재 요청의 인증 수단은 토큰에서 별도로 결정한다.
  */
 public record MemberInfo(
         Long id,
@@ -19,12 +20,13 @@ public record MemberInfo(
         AvatarType avatarType,
         String avatarValue,
         MemberStatus status,
-        Provider currentProvider,
+        Provider lastLoginProvider,
         List<Provider> connectedProviders
 ) {
 
     public static MemberInfo of(Member member, List<SocialAccount> accounts) {
-        Provider currentProvider = accounts.stream()
+        Provider lastLoginProvider = accounts.stream()
+                .filter(account -> account.getLastLoginAt() != null)
                 .max(Comparator.comparing(SocialAccount::getLastLoginAt))
                 .map(SocialAccount::getProvider)
                 .orElse(null);
@@ -41,7 +43,7 @@ public record MemberInfo(
                 member.getAvatarType(),
                 member.getAvatarValue(),
                 member.getStatus(),
-                currentProvider,
+                lastLoginProvider,
                 connectedProviders
         );
     }

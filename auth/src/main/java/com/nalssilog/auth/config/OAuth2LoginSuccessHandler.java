@@ -11,6 +11,7 @@ import com.nalssilog.auth.repository.AuthTicketStore;
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.member.application.dto.MemberInfo;
 import com.nalssilog.member.domain.MemberStatus;
+import com.nalssilog.member.domain.Provider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -94,16 +95,19 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         Optional<String> pendingLink = cookieManager.readLinkTicket(request);
 
         if (pendingLink.isPresent()) {
-            completeLink(request, response, pendingLink.get(), memberId, status);
+            completeLink(
+                    request, response, pendingLink.get(), memberId, status, principal.userInfo().provider());
             return;
         }
 
-        loginAndRedirect(request, response, memberId, status, "SUCCESS");
+        loginAndRedirect(
+                request, response, memberId, status, principal.userInfo().provider(), "SUCCESS");
     }
 
     // 연동 완료 시도. 명시 동의 + 대상 일치일 때만 실제 연동(방치/미동의 티켓 자동연동 방지), 아니면 일반 로그인.
     private void completeLink(HttpServletRequest request, HttpServletResponse response, String ticketId,
-                              Long authenticatedMemberId, MemberStatus status) throws IOException {
+                              Long authenticatedMemberId, MemberStatus status, Provider authenticatedProvider)
+            throws IOException {
         LinkTicket ticket = ticketStore.findLink(ticketId).orElse(null);
         boolean consented = ticketStore.isLinkConsented(ticketId);
 
@@ -112,7 +116,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         ticketStore.deleteLinkConsent(ticketId);
 
         if (ticket == null || !consented) {
-            loginAndRedirect(request, response, authenticatedMemberId, status, "SUCCESS");
+            loginAndRedirect(
+                    request, response, authenticatedMemberId, status, authenticatedProvider, "SUCCESS");
             return;
         }
 
@@ -125,7 +130,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 ticket.targetMemberId(),
                 new OAuthUserInfo(ticket.provider(), ticket.providerUserId(), ticket.email(), null));
 
-        loginAndRedirect(request, response, member.id(), member.status(), "LINK_SUCCESS");
+        loginAndRedirect(
+                request, response, member.id(), member.status(), authenticatedProvider, "LINK_SUCCESS");
     }
 
     private void handleNew(HttpServletResponse response, SocialAuthPrincipal principal) throws IOException {
@@ -155,8 +161,9 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     }
 
     private void loginAndRedirect(HttpServletRequest request, HttpServletResponse response, Long memberId,
-                                  MemberStatus status, String result) throws IOException {
-        TokenPair tokens = authTokenService.issue(memberId, status, deviceInfoResolver.resolve(request));
+                                  MemberStatus status, Provider provider, String result) throws IOException {
+        TokenPair tokens = authTokenService.issue(
+                memberId, status, provider, deviceInfoResolver.resolve(request));
         cookieManager.addAuthCookies(response, tokens.accessToken(), tokens.refreshToken());
 
         response.sendRedirect(callbackUrl(result));

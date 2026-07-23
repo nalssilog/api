@@ -49,7 +49,8 @@ public class ReportController {
                                            HttpServletRequest httpRequest) {
         ReportActor viewer = actorResolver.resolveForRead(memberId, httpRequest);
 
-        return reportService.list(locationId, cursor, viewer);
+        return reportService.list(
+                locationId, cursor, viewer, actorResolver.resolveForOwnership(memberId, httpRequest));
     }
 
     /**
@@ -61,7 +62,8 @@ public class ReportController {
                                                 HttpServletRequest httpRequest) {
         ReportActor viewer = actorResolver.resolveForRead(memberId, httpRequest);
 
-        return reportService.listByMember(memberId, cursor, viewer);
+        return reportService.listByMember(
+                memberId, cursor, viewer, actorResolver.resolveForOwnership(memberId, httpRequest));
     }
 
     /**
@@ -74,7 +76,8 @@ public class ReportController {
                                                     HttpServletRequest httpRequest) {
         ReportActor viewer = actorResolver.resolveForRead(viewerMemberId, httpRequest);
 
-        return reportService.listByMember(memberId, cursor, viewer);
+        return reportService.listByMember(
+                memberId, cursor, viewer, actorResolver.resolveForOwnership(viewerMemberId, httpRequest));
     }
 
     /**
@@ -91,7 +94,16 @@ public class ReportController {
                                  HttpServletRequest httpRequest) {
         ReportActor viewer = actorResolver.resolveForRead(memberId, httpRequest);
 
-        return reportService.get(id, viewer);
+        return reportService.get(
+                id, viewer, actorResolver.resolveForOwnership(memberId, httpRequest));
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id,
+                       @AuthenticationPrincipal Long memberId,
+                       HttpServletRequest httpRequest) {
+        reportService.delete(id, actorResolver.resolveForOwnership(memberId, httpRequest));
     }
 
     @PostMapping("/{id}/thanks")

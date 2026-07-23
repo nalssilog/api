@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 public enum ReportErrorCode implements ErrorCode {
 
     REPORT_NOT_FOUND("REPORT_NOT_FOUND", "제보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    REPORT_DELETE_FORBIDDEN("REPORT_DELETE_FORBIDDEN", "본인이 작성한 제보만 삭제할 수 있습니다.",
+            HttpStatus.FORBIDDEN),
     INVALID_CURSOR("INVALID_CURSOR", "잘못된 커서입니다.", HttpStatus.BAD_REQUEST),
     UNSUPPORTED_IMAGE_TYPE("UNSUPPORTED_IMAGE_TYPE", "지원하지 않는 이미지 형식입니다.", HttpStatus.BAD_REQUEST),
     IMAGE_TOO_LARGE("IMAGE_TOO_LARGE", "이미지 한 장은 5MB 이하여야 합니다.", HttpStatus.BAD_REQUEST),

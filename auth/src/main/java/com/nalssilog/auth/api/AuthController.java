@@ -91,7 +91,7 @@ public class AuthController {
                 new OAuthUserInfo(ticket.provider(), ticket.providerUserId(), ticket.email(), ticket.socialName()),
                 request.agreedTerms());
         TokenPair tokens = authTokenService.issue(
-                member.id(), member.status(), deviceInfoResolver.resolve(httpRequest));
+                member.id(), member.status(), ticket.provider(), deviceInfoResolver.resolve(httpRequest));
         cookieManager.addAuthCookies(response, tokens.accessToken(), tokens.refreshToken());
         ticketStore.deleteSignup(ticketId);
         cookieManager.clearSignupTicketCookie(response);
@@ -180,8 +180,8 @@ public class AuthController {
         ticketStore.markLinkConsented(ticketId, properties.ticket().ttl());
 
         MemberInfo target = memberClient.getMemberInfo(ticket.targetMemberId());
-        Provider reauthProvider = target.currentProvider() != null
-                ? target.currentProvider()
+        Provider reauthProvider = target.lastLoginProvider() != null
+                ? target.lastLoginProvider()
                 : target.connectedProviders().get(0);
 
         return new LinkConsentResponse("/api/auth/link/reauth/" + reauthProvider.name().toLowerCase(Locale.ROOT));

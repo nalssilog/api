@@ -1,19 +1,28 @@
 package com.nalssilog.member.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.member.application.dto.MemberInfo;
 import com.nalssilog.member.client.AvatarStorageClient;
 import com.nalssilog.member.domain.AvatarType;
 import com.nalssilog.member.domain.Member;
+import com.nalssilog.member.domain.MemberErrorCode;
 import com.nalssilog.member.domain.MemberStatus;
+import com.nalssilog.member.domain.Provider;
+import com.nalssilog.member.domain.SocialAccount;
 import com.nalssilog.member.repository.MemberRepository;
 import com.nalssilog.member.repository.SocialAccountRepository;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("java:S5960") // 표준 src/test 소스의 AssertJ 검증을 운영 코드 assertion으로 오인하는 경고.
 class MemberProfileServiceTest {
 
     private final MemberRepository memberRepository = mock(MemberRepository.class);
@@ -46,5 +55,36 @@ class MemberProfileServiceTest {
 
         assertThat(member.getName()).isEqualTo("홍길동");
         assertThat(actual).isSameAs(expected);
+    }
+
+    @Test
+    void rejectsUnlinkingCurrentLoginProvider() {
+        Member member = Member.register("user@example.com", "이름", "인사하는감자123");
+        SocialAccount current = SocialAccount.register(
+                member, Provider.KAKAO, "kakao-id", "user@example.com");
+        when(socialAccountRepository.findByMemberIdAndProvider(1L, Provider.KAKAO))
+                .thenReturn(Optional.of(current));
+
+        NalssiLogException exception = catchThrowableOfType(
+                NalssiLogException.class,
+                () -> service.unlinkSocial(1L, Provider.KAKAO, Provider.KAKAO)
+        );
+
+        assertThat(exception.getErrorCode()).isEqualTo(MemberErrorCode.CURRENT_LOGIN_PROVIDER);
+        verify(socialAccountRepository, never()).delete(current);
+    }
+
+    @Test
+    void unlinksProviderThatIsNotUsedByCurrentLogin() {
+        Member member = Member.register("user@example.com", "이름", "인사하는감자123");
+        SocialAccount linked = SocialAccount.link(
+                member, Provider.NAVER, "naver-id", "user@example.com");
+        when(socialAccountRepository.findByMemberIdAndProvider(1L, Provider.NAVER))
+                .thenReturn(Optional.of(linked));
+        when(socialAccountRepository.countByMemberId(1L)).thenReturn(2L);
+
+        service.unlinkSocial(1L, Provider.NAVER, Provider.KAKAO);
+
+        verify(socialAccountRepository).delete(linked);
     }
 }
