@@ -164,7 +164,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                                   MemberStatus status, Provider provider, String result) throws IOException {
         TokenPair tokens = authTokenService.issue(
                 memberId, status, provider, deviceInfoResolver.resolve(request));
-        cookieManager.addAuthCookies(response, tokens.accessToken(), tokens.refreshToken());
+        cookieManager.addAuthCookies(
+                response, tokens.accessToken(), tokens.refreshToken(), tokens.refreshTokenMaxAge());
 
         response.sendRedirect(callbackUrl(result));
     }

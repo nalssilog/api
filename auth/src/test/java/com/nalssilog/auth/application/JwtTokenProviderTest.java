@@ -30,7 +30,8 @@ class JwtTokenProviderTest {
                         Duration.ofDays(14)),
                 new AuthProperties.Cookie(false),
                 new AuthProperties.Ticket(Duration.ofMinutes(10)),
-                new AuthProperties.Csrf("XSRF-TOKEN", null)
+                new AuthProperties.Csrf("XSRF-TOKEN", null),
+                new AuthProperties.Refresh(Duration.ofSeconds(5))
         );
     }
 }

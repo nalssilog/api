@@ -16,9 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
+    private final FeedbackRateLimiter rateLimiter;
 
     @Transactional
-    public FeedbackInfo submit(Long memberId, String content) {
+    public FeedbackInfo submit(Long memberId, String remoteAddress, String content) {
+        rateLimiter.check(memberId, remoteAddress);
         Feedback feedback = Feedback.create(memberId, content.strip());
 
         return feedbackRepository.save(feedback);

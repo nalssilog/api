@@ -9,7 +9,10 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum AuthErrorCode implements ErrorCode {
 
+    AUTH_ACCESS_TOKEN_EXPIRED("AUTH_ACCESS_TOKEN_EXPIRED", "액세스 토큰이 만료되었습니다.", HttpStatus.UNAUTHORIZED),
     AUTH_SESSION_EXPIRED("AUTH_SESSION_EXPIRED", "인증 세션이 만료되었습니다. 다시 로그인해 주세요.", HttpStatus.UNAUTHORIZED),
+    AUTH_REFRESH_REUSED("AUTH_REFRESH_REUSED", "재사용된 인증 세션을 폐기했습니다. 다시 로그인해 주세요.",
+            HttpStatus.UNAUTHORIZED),
     TICKET_NOT_FOUND("AUTH_SESSION_EXPIRED", "인증 세션이 만료되었습니다. 다시 로그인해 주세요.", HttpStatus.BAD_REQUEST),
     UNSUPPORTED_PROVIDER("OAUTH_FAILED", "지원하지 않는 소셜 로그인입니다.", HttpStatus.BAD_REQUEST),
     OAUTH_FAILED("OAUTH_FAILED", "소셜 로그인에 실패했습니다.", HttpStatus.UNAUTHORIZED),

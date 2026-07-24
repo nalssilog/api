@@ -26,7 +26,9 @@ public enum MemberErrorCode implements ErrorCode {
     IMAGE_TOO_LARGE("IMAGE_TOO_LARGE", "이미지는 2MB 이하여야 합니다.", HttpStatus.BAD_REQUEST),
     INVALID_IMAGE_KEY("INVALID_IMAGE_KEY", "잘못된 이미지 키입니다.", HttpStatus.BAD_REQUEST),
     IMAGE_NOT_FOUND("IMAGE_NOT_FOUND", "업로드된 이미지를 찾을 수 없습니다.", HttpStatus.BAD_REQUEST),
-    TERMS_NOT_AGREED("TERMS_NOT_AGREED", "필수 약관에 모두 동의해야 합니다.", HttpStatus.BAD_REQUEST);
+    TERMS_NOT_AGREED("TERMS_NOT_AGREED", "필수 약관에 모두 동의해야 합니다.", HttpStatus.BAD_REQUEST),
+    FEEDBACK_RATE_LIMITED("FEEDBACK_RATE_LIMITED", "피드백을 너무 자주 보냈습니다. 잠시 후 다시 시도해 주세요.",
+            HttpStatus.TOO_MANY_REQUESTS);
 
     private final String code;
     private final String message;
