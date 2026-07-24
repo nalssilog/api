@@ -2,6 +2,7 @@ package com.nalssilog.auth.application;
 
 import com.nalssilog.auth.application.dto.SessionData;
 import com.nalssilog.auth.application.dto.SessionView;
+import com.nalssilog.auth.config.AuthProperties;
 import com.nalssilog.auth.domain.AuthErrorCode;
 import com.nalssilog.auth.repository.RefreshTokenStore;
 import com.nalssilog.common.exception.NalssiLogException;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 public class AuthSessionService {
 
     private final RefreshTokenStore refreshTokenStore;
+    private final AuthProperties properties;
 
     public List<SessionView> listSessions(Long memberId, String currentTokenHash) {
         return refreshTokenStore.findSessionsByMember(memberId).stream()
@@ -37,13 +39,17 @@ public class AuthSessionService {
      * 특정 세션(기기) 로그아웃. 대상이 현재 세션이면 true 를 반환해 컨트롤러가 쿠키까지 정리하게 한다.
      */
     public boolean revokeSession(Long memberId, String sessionId, String currentTokenHash) {
-        SessionData target = refreshTokenStore.findSessionsByMember(memberId).stream()
+        List<SessionData> sessions = refreshTokenStore.findSessionsByMember(memberId);
+        SessionData target = sessions.stream()
                 .filter(session -> session.sessionId().equals(sessionId))
                 .findFirst()
                 .orElseThrow(() -> new NalssiLogException(AuthErrorCode.SESSION_NOT_FOUND));
 
-        refreshTokenStore.delete(target.tokenHash());
+        boolean current = currentTokenHash != null && sessions.stream()
+                .anyMatch(session -> session.sessionId().equals(sessionId)
+                        && session.tokenHash().equals(currentTokenHash));
+        refreshTokenStore.revokeSession(memberId, target.sessionId(), properties.jwt().refreshTokenTtl());
 
-        return target.tokenHash().equals(currentTokenHash);
+        return current;
     }
 }

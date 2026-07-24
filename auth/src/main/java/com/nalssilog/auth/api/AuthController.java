@@ -75,6 +75,13 @@ public class AuthController {
             return MeResponse.linkRequired(link.get().provider(), link.get().email(), link.get().existingProviders());
         }
 
+        // AT 쿠키는 JWT와 같은 시점에 브라우저에서 사라질 수 있다. RT가 남아 있으면 로그아웃(NONE)이 아니라
+        // refresh가 필요한 상태이므로 401로 명확히 알린다. NONE은 인증 쿠키가 정말 하나도 없을 때만 반환한다.
+        if (cookieManager.readAccessToken(request).isPresent()
+                || cookieManager.readRefreshToken(request).isPresent()) {
+            throw new NalssiLogException(AuthErrorCode.AUTH_ACCESS_TOKEN_EXPIRED);
+        }
+
         return MeResponse.none();
     }
 
@@ -92,7 +99,8 @@ public class AuthController {
                 request.agreedTerms());
         TokenPair tokens = authTokenService.issue(
                 member.id(), member.status(), ticket.provider(), deviceInfoResolver.resolve(httpRequest));
-        cookieManager.addAuthCookies(response, tokens.accessToken(), tokens.refreshToken());
+        cookieManager.addAuthCookies(
+                response, tokens.accessToken(), tokens.refreshToken(), tokens.refreshTokenMaxAge());
         ticketStore.deleteSignup(ticketId);
         cookieManager.clearSignupTicketCookie(response);
 
@@ -101,11 +109,19 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public void refresh(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = cookieManager.readRefreshToken(request)
-                .orElseThrow(() -> new NalssiLogException(AuthErrorCode.AUTH_SESSION_EXPIRED));
-        TokenPair tokens = authTokenService.refresh(refreshToken, deviceInfoResolver.resolve(request));
+        try {
+            String refreshToken = cookieManager.readRefreshToken(request)
+                    .orElseThrow(() -> new NalssiLogException(AuthErrorCode.AUTH_SESSION_EXPIRED));
+            TokenPair tokens = authTokenService.refresh(refreshToken, deviceInfoResolver.resolve(request));
 
-        cookieManager.addAuthCookies(response, tokens.accessToken(), tokens.refreshToken());
+            cookieManager.addAuthCookies(
+                    response, tokens.accessToken(), tokens.refreshToken(), tokens.refreshTokenMaxAge());
+        } catch (NalssiLogException exception) {
+            if (isTerminalRefreshError(exception)) {
+                cookieManager.clearAuthCookies(response);
+            }
+            throw exception;
+        }
     }
 
     @PostMapping("/logout")
@@ -213,5 +229,10 @@ public class AuthController {
         } catch (IllegalArgumentException _) {
             throw new NalssiLogException(AuthErrorCode.UNSUPPORTED_PROVIDER);
         }
+    }
+
+    private boolean isTerminalRefreshError(NalssiLogException exception) {
+        return exception.getErrorCode() == AuthErrorCode.AUTH_SESSION_EXPIRED
+                || exception.getErrorCode() == AuthErrorCode.AUTH_REFRESH_REUSED;
     }
 }

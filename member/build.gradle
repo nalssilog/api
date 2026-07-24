@@ -7,4 +7,5 @@ dependencies {
     // 컨트롤러에서 인증된 memberId(@AuthenticationPrincipal)를 읽기 위한 최소 의존.
     // 시큐리티 필터/설정은 auth 모듈이 소유하고, member 는 SecurityContext 만 읽는다.
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 }

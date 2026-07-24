@@ -28,8 +28,16 @@ public class AuthCookieManager {
     }
 
     public void addAuthCookies(HttpServletResponse response, String accessToken, String refreshToken) {
+        addAuthCookies(response, accessToken, refreshToken, properties.jwt().refreshTokenTtl());
+    }
+
+    public void addAuthCookies(HttpServletResponse response, String accessToken, String refreshToken,
+                               Duration refreshTokenMaxAge) {
         addAccessTokenCookie(response, accessToken);
-        addCookie(response, REFRESH_TOKEN_COOKIE, refreshToken, properties.jwt().refreshTokenTtl());
+        Duration maxAge = refreshTokenMaxAge == null
+                ? properties.jwt().refreshTokenTtl()
+                : refreshTokenMaxAge;
+        addCookie(response, REFRESH_TOKEN_COOKIE, refreshToken, maxAge);
     }
 
     public void clearAuthCookies(HttpServletResponse response) {
