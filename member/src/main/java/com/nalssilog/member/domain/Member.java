@@ -29,6 +29,7 @@ public class Member extends BaseTimeEntity {
     public static final int NICKNAME_MAX_LENGTH = 10;
     public static final int NICKNAME_MIN_LENGTH = 2;
     public static final int NICKNAME_STORAGE_MAX_LENGTH = 20;
+    public static final int AVATAR_VALUE_MAX_LENGTH = 500;
     /** 허용 문자: 한글(완성형)·영문 대소문자·숫자만. 공백·특수문자 불가. (길이는 @Size 로 별도 검증) */
     public static final String NICKNAME_PATTERN = "^[가-힣a-zA-Z0-9]+$";
 
@@ -52,7 +53,7 @@ public class Member extends BaseTimeEntity {
     @Column(name = "avatar_type", nullable = false, length = 20)
     private AvatarType avatarType;
 
-    @Column(name = "avatar_value", nullable = true, length = 100)
+    @Column(name = "avatar_value", nullable = true, length = AVATAR_VALUE_MAX_LENGTH)
     private String avatarValue;
 
     @Enumerated(EnumType.STRING)
