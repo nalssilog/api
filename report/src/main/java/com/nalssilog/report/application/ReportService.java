@@ -38,8 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReportService {
 
     private static final int PAGE_SIZE = 20;
-    // 홈 피드·통계 공통 최근 윈도우. "지금 이 동네 체감" 컨셉이라 24시간으로 통일.
-    private static final Duration RECENT_WINDOW = Duration.ofHours(24);
+    private static final Duration STATS_WINDOW = Duration.ofHours(24);
 
     private final WeatherReportRepository reportRepository;
     private final ThanksRepository thanksRepository;
@@ -72,8 +71,7 @@ public class ReportService {
         Instant cursorTime = decoded == null ? null : decoded.createdAt();
         Long cursorId = decoded == null ? null : decoded.id();
 
-        Instant since = Instant.now().minus(RECENT_WINDOW);
-        List<ReportData> fetched = reportRepository.findPage(locationId, since, cursorTime, cursorId, PAGE_SIZE + 1);
+        List<ReportData> fetched = reportRepository.findPage(locationId, cursorTime, cursorId, PAGE_SIZE + 1);
         boolean hasNext = fetched.size() > PAGE_SIZE;
         List<ReportData> page = hasNext ? fetched.subList(0, PAGE_SIZE) : fetched;
 
@@ -140,12 +138,12 @@ public class ReportService {
     }
 
     /**
-     * 지역 날씨 통계. 최근 {@link #RECENT_WINDOW} 이내 제보들의 3축 분포 + 제보 수.
+     * 지역 날씨 통계. 최근 {@link #STATS_WINDOW} 이내 제보들의 3축 분포 + 제보 수.
      * (locationClient.getLocation 이 유효하지 않은 지역이면 LOCATION_NOT_FOUND 를 던져 검증도 겸함)
      */
     public WeatherStatsResponse stats(Long locationId) {
         LocationSummary location = locationClient.getLocation(locationId);
-        WeatherStatsData stats = reportRepository.statsSince(locationId, Instant.now().minus(RECENT_WINDOW));
+        WeatherStatsData stats = reportRepository.statsSince(locationId, Instant.now().minus(STATS_WINDOW));
 
         return WeatherStatsResponse.of(location, stats);
     }

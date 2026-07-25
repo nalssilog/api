@@ -2,7 +2,6 @@ package com.nalssilog.report.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -126,7 +125,7 @@ class ReportServiceTest {
     @Test
     void listIncludesOwnershipCalculatedFromAllAvailableActors() {
         ReportData data = anonymousData("anonymous-key");
-        when(reportRepository.findPage(eq(1L), any(Instant.class), isNull(), isNull(), eq(21)))
+        when(reportRepository.findPage(eq(1L), isNull(), isNull(), eq(21)))
                 .thenReturn(List.of(data));
         when(locationClient.getLocation(1L)).thenReturn(location());
         when(thanksRepository.countByReportIds(List.of(10L))).thenReturn(Map.of());
