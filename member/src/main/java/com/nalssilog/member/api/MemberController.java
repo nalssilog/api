@@ -16,8 +16,8 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.annotation.CurrentSecurityContext;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -42,8 +42,11 @@ public class MemberController {
     }
 
     @GetMapping("/me")
-    public MemberMeResponse me(@AuthenticationPrincipal Long memberId, Authentication authentication) {
-        return MemberMeResponse.from(memberProfileService.getMe(memberId), currentProvider(authentication));
+    public MemberMeResponse me(
+        @AuthenticationPrincipal Long memberId,
+        @CurrentSecurityContext(expression = "authentication.details") Provider currentProvider
+    ) {
+        return MemberMeResponse.from(memberProfileService.getMe(memberId), currentProvider);
     }
 
     @GetMapping("/{id}")
@@ -52,38 +55,38 @@ public class MemberController {
     }
 
     @PatchMapping("/me/name")
-    public MemberMeResponse changeName(@AuthenticationPrincipal Long memberId,
-                                       Authentication authentication,
-                                       @Valid @RequestBody ChangeNameRequest request) {
-        return MemberMeResponse.from(
-                memberProfileService.changeName(memberId, request.name()), currentProvider(authentication));
+    public MemberMeResponse changeName(
+        @AuthenticationPrincipal Long memberId,
+        @CurrentSecurityContext(expression = "authentication.details") Provider currentProvider,
+        @Valid @RequestBody ChangeNameRequest request
+    ) {
+        return MemberMeResponse.from(memberProfileService.changeName(memberId, request.name()), currentProvider);
     }
 
     @PatchMapping("/me/nickname")
-    public MemberMeResponse changeNickname(@AuthenticationPrincipal Long memberId,
-                                           Authentication authentication,
-                                           @Valid @RequestBody ChangeNicknameRequest request) {
-        return MemberMeResponse.from(
-                memberProfileService.changeNickname(memberId, request.nickname()), currentProvider(authentication));
+    public MemberMeResponse changeNickname(
+        @AuthenticationPrincipal Long memberId,
+        @CurrentSecurityContext(expression = "authentication.details") Provider currentProvider,
+        @Valid @RequestBody ChangeNicknameRequest request
+    ) {
+        return MemberMeResponse.from(memberProfileService.changeNickname(memberId, request.nickname()), currentProvider);
     }
 
     @PatchMapping("/me/avatar")
-    public MemberMeResponse changeAvatar(@AuthenticationPrincipal Long memberId,
-                                         Authentication authentication,
-                                         @Valid @RequestBody ChangeAvatarRequest request) {
-        return MemberMeResponse.from(
-                memberProfileService.changeAvatar(memberId, request.type(), request.value()),
-                currentProvider(authentication));
+    public MemberMeResponse changeAvatar(
+        @AuthenticationPrincipal Long memberId,
+        @CurrentSecurityContext(expression = "authentication.details") Provider currentProvider,
+        @Valid @RequestBody ChangeAvatarRequest request
+    ) {
+        return MemberMeResponse.from(memberProfileService.changeAvatar(memberId, request.type(), request.value()), currentProvider);
     }
 
-    /**
-     * 커스텀 아바타 업로드용 presigned URL 발급. 업로드 후 PATCH /me/avatar 로 {type:CUSTOM, value:storageKey} 전송.
-     */
     @PostMapping("/me/avatar/presign")
-    public AvatarPresignResponse presignAvatar(@AuthenticationPrincipal Long memberId,
-                                               @Valid @RequestBody AvatarPresignRequest request) {
-        return AvatarPresignResponse.from(
-                memberProfileService.presignAvatar(memberId, request.contentType(), request.size()));
+    public AvatarPresignResponse presignAvatar(
+        @AuthenticationPrincipal Long memberId,
+        @Valid @RequestBody AvatarPresignRequest request
+    ) {
+        return AvatarPresignResponse.from(memberProfileService.presignAvatar(memberId, request.contentType(), request.size()));
     }
 
     @GetMapping("/me/social-accounts")
@@ -95,17 +98,11 @@ public class MemberController {
 
     @DeleteMapping("/me/social-accounts/{provider}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void unlinkSocial(@AuthenticationPrincipal Long memberId, Authentication authentication,
-                             @PathVariable String provider) {
-        memberProfileService.unlinkSocial(
-                memberId, Provider.from(provider), currentProvider(authentication));
-    }
-
-    private Provider currentProvider(Authentication authentication) {
-        if (authentication.getDetails() instanceof Provider provider) {
-            return provider;
-        }
-
-        throw new IllegalStateException("Authenticated provider is missing");
+    public void unlinkSocial(
+        @AuthenticationPrincipal Long memberId,
+        @CurrentSecurityContext(expression = "authentication.details") Provider currentProvider,
+        @PathVariable String provider
+    ) {
+        memberProfileService.unlinkSocial(memberId, Provider.from(provider), currentProvider);
     }
 }

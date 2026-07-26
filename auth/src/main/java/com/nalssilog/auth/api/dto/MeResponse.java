@@ -1,5 +1,6 @@
 package com.nalssilog.auth.api.dto;
 
+import com.nalssilog.auth.application.AuthService.MeState;
 import com.nalssilog.member.application.dto.MemberInfo;
 import com.nalssilog.member.domain.AvatarType;
 import com.nalssilog.member.domain.Provider;
@@ -47,5 +48,15 @@ public record MeResponse(
 
     public static MeResponse none() {
         return new MeResponse(false, AuthResult.NONE, null, null);
+    }
+
+    public static MeResponse from(MeState state) {
+        return switch (state.status()) {
+            case AUTHENTICATED -> authenticated(state.member());
+            case SIGNUP_REQUIRED -> signupRequired(state.provider(), state.email());
+            case LINK_REQUIRED -> linkRequired(
+                    state.provider(), state.email(), state.existingProviders());
+            case NONE -> none();
+        };
     }
 }

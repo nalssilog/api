@@ -26,7 +26,10 @@ public class LocationController {
     }
 
     @GetMapping("/reverse-geocode")
-    public LocationResponse reverseGeocode(@RequestParam double lat, @RequestParam double lng) {
+    public LocationResponse reverseGeocode(
+        @RequestParam double lat,
+        @RequestParam double lng
+    ) {
         return LocationResponse.from(locationService.reverseGeocode(lat, lng));
     }
 

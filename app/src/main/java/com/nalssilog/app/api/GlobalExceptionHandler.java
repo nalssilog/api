@@ -1,8 +1,14 @@
-package com.nalssilog.common.exception;
+package com.nalssilog.app.api;
 
+import com.nalssilog.auth.config.AuthCookieManager;
+import com.nalssilog.auth.domain.RefreshRejectedException;
+import com.nalssilog.common.exception.ErrorCode;
+import com.nalssilog.common.exception.ErrorResponse;
+import com.nalssilog.common.exception.NalssiLogException;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -12,23 +18,32 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
 
+    private final AuthCookieManager authCookieManager;
+
     @ExceptionHandler(NalssiLogException.class)
-    public ResponseEntity<ErrorResponse> handleNalssiLogException(NalssiLogException e) {
-        ErrorCode errorCode = e.getErrorCode();
+    public ErrorResponse handleNalssiLogException(
+            NalssiLogException exception,
+            HttpServletResponse response
+    ) {
+        if (exception instanceof RefreshRejectedException) {
+            authCookieManager.clearAuthCookies(response);
+        }
 
+        ErrorCode errorCode = exception.getErrorCode();
+        response.setStatus(errorCode.getStatus().value());
         log.warn("NalssiLogException [{}] {} (status={})",
-                errorCode.getCode(), e.getMessage(), errorCode.getStatus().value());
+                errorCode.getCode(), exception.getMessage(), errorCode.getStatus().value());
 
-        return ResponseEntity.status(errorCode.getStatus())
-                .body(new ErrorResponse(errorCode.getCode(), e.getMessage()));
+        return new ErrorResponse(errorCode.getCode(), exception.getMessage());
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ErrorResponse handleValidationException(MethodArgumentNotValidException e) {
-        String message = e.getBindingResult().getFieldErrors().stream()
+    public ErrorResponse handleValidationException(MethodArgumentNotValidException exception) {
+        String message = exception.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .orElse("잘못된 요청입니다.");
@@ -38,20 +53,20 @@ public class GlobalExceptionHandler {
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ErrorResponse handleNotReadable(HttpMessageNotReadableException e) {
+    public ErrorResponse handleNotReadable(HttpMessageNotReadableException exception) {
         return new ErrorResponse("INVALID_REQUEST", "요청 본문을 해석할 수 없습니다.");
     }
 
     @ResponseStatus(HttpStatus.NOT_FOUND)
     @ExceptionHandler(NoResourceFoundException.class)
-    public ErrorResponse handleNoResourceFoundException(NoResourceFoundException e) {
+    public ErrorResponse handleNoResourceFoundException(NoResourceFoundException exception) {
         return new ErrorResponse("NOT_FOUND", "요청한 리소스를 찾을 수 없습니다.");
     }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ExceptionHandler(Exception.class)
-    public ErrorResponse handleUnexpectedException(Exception e) {
-        log.error("Unexpected exception", e);
+    public ErrorResponse handleUnexpectedException(Exception exception) {
+        log.error("Unexpected exception", exception);
 
         return new ErrorResponse("INTERNAL_ERROR", "서버 오류가 발생했습니다.");
     }

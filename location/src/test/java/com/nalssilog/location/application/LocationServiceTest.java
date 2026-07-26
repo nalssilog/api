@@ -56,6 +56,20 @@ class LocationServiceTest {
     }
 
     @Test
+    void searchesJeonbukWithItsCurrentOfficialNameWhenLegacyNameIsEntered() {
+        service.search("전라북도 전주시");
+
+        verify(locationRepository).searchByKeyword("전북특별자치도 전주시");
+    }
+
+    @Test
+    void searchesIntegratedJeonnamGwangjuWhenLegacyNameIsEntered() {
+        service.search("전라남도 순천시");
+
+        verify(locationRepository).searchByKeyword("전남광주통합특별시 순천시");
+    }
+
+    @Test
     void fillsPopularLocationsToFiveWithNonDuplicateFeaturedLocations() {
         List<String> featuredCodes = List.of("code-2", "code-3", "code-4", "code-5", "code-6");
         LocationService popularService = new LocationService(
