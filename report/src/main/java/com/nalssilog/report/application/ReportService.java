@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReportService {
 
     private static final int PAGE_SIZE = 20;
-    private static final Duration STATS_WINDOW = Duration.ofHours(24);
+    private static final Duration STATS_WINDOW = Duration.ofHours(3);
 
     private final WeatherReportRepository reportRepository;
     private final ThanksRepository thanksRepository;

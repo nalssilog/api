@@ -34,91 +34,97 @@ public class ReportController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ReportResponse create(@AuthenticationPrincipal Long memberId,
-                                 @Valid @RequestBody CreateReportRequest request,
-                                 HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+    public ReportResponse create(
+        @AuthenticationPrincipal Long memberId,
+        @Valid @RequestBody CreateReportRequest request,
+        HttpServletRequest httpRequest,
+        HttpServletResponse httpResponse
+    ) {
         ReportActor actor = actorResolver.resolveForWrite(memberId, httpRequest, httpResponse);
 
         return reportService.create(actor, request.toCommand());
     }
 
     @GetMapping
-    public CursorPage<ReportResponse> list(@RequestParam Long locationId,
-                                           @RequestParam(required = false) String cursor,
-                                           @AuthenticationPrincipal Long memberId,
-                                           HttpServletRequest httpRequest) {
+    public CursorPage<ReportResponse> list(
+        @RequestParam Long locationId,
+        @RequestParam(required = false) String cursor,
+        @AuthenticationPrincipal Long memberId,
+        HttpServletRequest httpRequest
+    ) {
         ReportActor viewer = actorResolver.resolveForRead(memberId, httpRequest);
 
-        return reportService.list(
-                locationId, cursor, viewer, actorResolver.resolveForOwnership(memberId, httpRequest));
+        return reportService.list(locationId, cursor, viewer, actorResolver.resolveForOwnership(memberId, httpRequest));
     }
 
-    /**
-     * 내 제보 목록(로그인 회원 전용). /{id} 보다 먼저 매칭되도록 위에 둔다.
-     */
     @GetMapping("/me")
-    public CursorPage<ReportResponse> myReports(@AuthenticationPrincipal Long memberId,
-                                                @RequestParam(required = false) String cursor,
-                                                HttpServletRequest httpRequest) {
+    public CursorPage<ReportResponse> myReports(
+        @AuthenticationPrincipal Long memberId,
+        @RequestParam(required = false) String cursor,
+        HttpServletRequest httpRequest
+    ) {
         ReportActor viewer = actorResolver.resolveForRead(memberId, httpRequest);
 
-        return reportService.listByMember(
-                memberId, cursor, viewer, actorResolver.resolveForOwnership(memberId, httpRequest));
+        return reportService.listByMember(memberId, cursor, viewer, actorResolver.resolveForOwnership(memberId, httpRequest));
     }
 
-    /**
-     * 특정 회원의 제보 목록(공개). 탈퇴 회원이면 작성자는 "익명 이웃"으로 렌더된다.
-     */
     @GetMapping("/members/{memberId}")
-    public CursorPage<ReportResponse> memberReports(@PathVariable Long memberId,
-                                                    @RequestParam(required = false) String cursor,
-                                                    @AuthenticationPrincipal Long viewerMemberId,
-                                                    HttpServletRequest httpRequest) {
+    public CursorPage<ReportResponse> memberReports(
+        @PathVariable Long memberId,
+        @RequestParam(required = false) String cursor,
+        @AuthenticationPrincipal Long viewerMemberId,
+        HttpServletRequest httpRequest
+    ) {
         ReportActor viewer = actorResolver.resolveForRead(viewerMemberId, httpRequest);
 
-        return reportService.listByMember(
-                memberId, cursor, viewer, actorResolver.resolveForOwnership(viewerMemberId, httpRequest));
+        return reportService.listByMember(memberId, cursor, viewer, actorResolver.resolveForOwnership(viewerMemberId, httpRequest));
     }
 
-    /**
-     * 지역 날씨 통계(최근 24시간 3축 분포 + 제보 수). /{id} 보다 먼저 매칭되도록 위에 둔다.
-     */
     @GetMapping("/stats")
     public WeatherStatsResponse stats(@RequestParam Long locationId) {
         return reportService.stats(locationId);
     }
 
     @GetMapping("/{id}")
-    public ReportResponse detail(@PathVariable Long id,
-                                 @AuthenticationPrincipal Long memberId,
-                                 HttpServletRequest httpRequest) {
+    public ReportResponse detail(
+        @PathVariable Long id,
+        @AuthenticationPrincipal Long memberId,
+        HttpServletRequest httpRequest
+    ) {
         ReportActor viewer = actorResolver.resolveForRead(memberId, httpRequest);
 
-        return reportService.get(
-                id, viewer, actorResolver.resolveForOwnership(memberId, httpRequest));
+        return reportService.get(id, viewer, actorResolver.resolveForOwnership(memberId, httpRequest));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id,
-                       @AuthenticationPrincipal Long memberId,
-                       HttpServletRequest httpRequest) {
+    public void delete(
+        @PathVariable Long id,
+        @AuthenticationPrincipal Long memberId,
+        HttpServletRequest httpRequest
+    ) {
         reportService.delete(id, actorResolver.resolveForOwnership(memberId, httpRequest));
     }
 
     @PostMapping("/{id}/thanks")
-    public ThanksResponse addThanks(@PathVariable Long id,
-                                    @AuthenticationPrincipal Long memberId,
-                                    HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+    public ThanksResponse addThanks(
+        @PathVariable Long id,
+        @AuthenticationPrincipal Long memberId,
+        HttpServletRequest httpRequest,
+        HttpServletResponse httpResponse
+    ) {
         ReportActor actor = actorResolver.resolveForWrite(memberId, httpRequest, httpResponse);
 
         return reportService.addThanks(id, actor);
     }
 
     @DeleteMapping("/{id}/thanks")
-    public ThanksResponse removeThanks(@PathVariable Long id,
-                                       @AuthenticationPrincipal Long memberId,
-                                       HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+    public ThanksResponse removeThanks(
+        @PathVariable Long id,
+        @AuthenticationPrincipal Long memberId,
+        HttpServletRequest httpRequest,
+        HttpServletResponse httpResponse
+    ) {
         ReportActor actor = actorResolver.resolveForWrite(memberId, httpRequest, httpResponse);
 
         return reportService.removeThanks(id, actor);

@@ -25,10 +25,11 @@ public class FeedbackController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public FeedbackResponse submit(@AuthenticationPrincipal Long memberId,
-                                   HttpServletRequest httpRequest,
-                                   @Valid @RequestBody CreateFeedbackRequest request) {
-        return FeedbackResponse.from(
-                feedbackService.submit(memberId, clientIpResolver.resolve(httpRequest), request.content()));
+    public FeedbackResponse submit(
+        @AuthenticationPrincipal Long memberId,
+        HttpServletRequest httpRequest,
+        @Valid @RequestBody CreateFeedbackRequest request
+    ) {
+        return FeedbackResponse.from(feedbackService.submit(memberId, clientIpResolver.resolve(httpRequest), request.content()));
     }
 }

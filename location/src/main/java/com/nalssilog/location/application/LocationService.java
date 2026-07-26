@@ -25,6 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class LocationService {
 
     private static final int POPULAR_SIZE = 5;
+    private static final String FORMER_JEONBUK = "전라북도";
+    private static final String CURRENT_JEONBUK = "전북특별자치도";
+    private static final String FORMER_JEONNAM = "전라남도";
+    private static final String FORMER_GWANGJU = "광주광역시";
+    private static final String CURRENT_JEONNAM_GWANGJU = "전남광주통합특별시";
 
     private final LocationRepository locationRepository;
     private final PopularLocationSource popularLocationSource;
@@ -32,7 +37,7 @@ public class LocationService {
     private final KakaoMapClient kakaoMapClient;
 
     public List<LocationInfo> search(String keyword) {
-        return locationRepository.searchByKeyword(keyword.strip());
+        return locationRepository.searchByKeyword(normalizeLegacyRegionName(keyword.strip()));
     }
 
     public LocationInfo getLocation(Long locationId) {
@@ -84,5 +89,12 @@ public class LocationService {
                 || !Double.isFinite(longitude) || longitude < -180 || longitude > 180) {
             throw new NalssiLogException(LocationErrorCode.INVALID_COORDINATES);
         }
+    }
+
+    private static String normalizeLegacyRegionName(String keyword) {
+        return keyword
+                .replace(FORMER_JEONBUK, CURRENT_JEONBUK)
+                .replace(FORMER_JEONNAM, CURRENT_JEONNAM_GWANGJU)
+                .replace(FORMER_GWANGJU, CURRENT_JEONNAM_GWANGJU);
     }
 }

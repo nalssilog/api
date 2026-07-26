@@ -2,6 +2,7 @@ package com.nalssilog.report.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -15,6 +16,7 @@ import com.nalssilog.report.api.dto.ReportResponse;
 import com.nalssilog.report.application.dto.LocationSummary;
 import com.nalssilog.report.application.dto.ReportActor;
 import com.nalssilog.report.application.dto.ReportData;
+import com.nalssilog.report.application.dto.WeatherStatsData;
 import com.nalssilog.report.client.ImageStorageClient;
 import com.nalssilog.report.client.LocationClient;
 import com.nalssilog.report.client.MemberClient;
@@ -141,6 +143,22 @@ class ReportServiceTest {
         assertThat(response.items()).singleElement()
                 .extracting(ReportResponse::isMine)
                 .isEqualTo(true);
+    }
+
+    @Test
+    void statsAggregatesReportsFromTheLastThreeHours() {
+        WeatherStatsData stats = new WeatherStatsData(0L, Map.of(), Map.of(), Map.of());
+        when(locationClient.getLocation(1L)).thenReturn(location());
+        when(reportRepository.statsSince(eq(1L), any(Instant.class)))
+                .thenReturn(stats);
+        Instant lowerBound = Instant.now().minusSeconds(3 * 60 * 60);
+
+        service.stats(1L);
+
+        ArgumentCaptor<Instant> sinceCaptor = ArgumentCaptor.forClass(Instant.class);
+        verify(reportRepository).statsSince(eq(1L), sinceCaptor.capture());
+        assertThat(sinceCaptor.getValue())
+                .isBetween(lowerBound, Instant.now().minusSeconds(3 * 60 * 60));
     }
 
     private WeatherReport memberReport(Long memberId) {

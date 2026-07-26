@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.nalssilog.auth.api.dto.AuthResult;
 import com.nalssilog.auth.api.dto.MeResponse;
+import com.nalssilog.auth.application.AuthService;
 import com.nalssilog.auth.application.AuthSessionService;
 import com.nalssilog.auth.application.AuthTokenService;
 import com.nalssilog.auth.application.TokenPair;
@@ -16,6 +17,7 @@ import com.nalssilog.auth.config.AuthCookieManager;
 import com.nalssilog.auth.config.AuthProperties;
 import com.nalssilog.auth.config.DeviceInfoResolver;
 import com.nalssilog.auth.domain.AuthErrorCode;
+import com.nalssilog.auth.domain.RefreshRejectedException;
 import com.nalssilog.auth.repository.AuthTicketStore;
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.member.application.dto.MemberInfo;
@@ -46,13 +48,15 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new AuthController(
+        AuthService authService = new AuthService(
                 memberClient,
                 tokenService,
                 sessionService,
-                cookieManager,
                 ticketStore,
-                properties,
+                properties);
+        controller = new AuthController(
+                authService,
+                cookieManager,
                 deviceInfoResolver);
     }
 
@@ -104,7 +108,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void terminalRefreshErrorDeletesBothAuthenticationCookies() {
+    void terminalRefreshErrorIsClassifiedByAuthService() {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setCookies(new Cookie(AuthCookieManager.REFRESH_TOKEN_COOKIE, "expired-token"));
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -112,30 +116,11 @@ class AuthControllerTest {
         when(tokenService.refresh("expired-token", null))
                 .thenThrow(new NalssiLogException(AuthErrorCode.AUTH_SESSION_EXPIRED));
 
-        NalssiLogException exception = catchThrowableOfType(
-                NalssiLogException.class,
+        RefreshRejectedException exception = catchThrowableOfType(
+                RefreshRejectedException.class,
                 () -> controller.refresh(request, response));
 
         assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.AUTH_SESSION_EXPIRED);
-        assertThat(response.getHeaders(HttpHeaders.SET_COOKIE))
-                .anySatisfy(header -> assertThat(header)
-                        .contains("access_token=")
-                        .contains("Path=/")
-                        .contains("Max-Age=0")
-                        .contains("Expires=Thu, 1 Jan 1970 00:00:00 GMT")
-                        .contains("Secure")
-                        .contains("HttpOnly")
-                        .contains("SameSite=Lax")
-                        .doesNotContain("Domain="))
-                .anySatisfy(header -> assertThat(header)
-                        .contains("refresh_token=")
-                        .contains("Path=/")
-                        .contains("Max-Age=0")
-                        .contains("Expires=Thu, 1 Jan 1970 00:00:00 GMT")
-                        .contains("Secure")
-                        .contains("HttpOnly")
-                        .contains("SameSite=Lax")
-                        .doesNotContain("Domain="));
     }
 
     @Test

@@ -33,13 +33,19 @@ public class LocationFavoriteController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public void addFavorite(@AuthenticationPrincipal Long memberId, @Valid @RequestBody FavoriteRequest request) {
+    public void addFavorite(
+        @AuthenticationPrincipal Long memberId,
+        @Valid @RequestBody FavoriteRequest request
+    ) {
         locationFavoriteService.addFavorite(memberId, request.locationId());
     }
 
     @DeleteMapping("/{locationId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removeFavorite(@AuthenticationPrincipal Long memberId, @PathVariable Long locationId) {
+    public void removeFavorite(
+        @AuthenticationPrincipal Long memberId,
+        @PathVariable Long locationId
+    ) {
         locationFavoriteService.removeFavorite(memberId, locationId);
     }
 }
