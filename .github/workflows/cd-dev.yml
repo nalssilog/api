@@ -1,27 +1,46 @@
 name: CD (dev)
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  push:
     branches: [develop]
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
     concurrency:
       group: cd-dev
       cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
       packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
+
+      - name: Detect direct push
+        id: push-source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MERGED_PR_COUNT=$(
+            curl --fail --silent --show-error --location \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" |
+              jq --arg branch "$GITHUB_REF_NAME" \
+                '[.[] | select(.merged_at != null and .base.ref == $branch)] | length'
+          )
+          if [ "$MERGED_PR_COUNT" -eq 0 ]; then
+            echo "direct_push=true" >> "$GITHUB_OUTPUT"
+            echo "Direct push detected: CI will run before deployment."
+          else
+            echo "direct_push=false" >> "$GITHUB_OUTPUT"
+            echo "Merged pull request detected: using the completed PR CI result."
+          fi
 
       - name: Checkout config submodule
         env:
@@ -42,6 +61,12 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+
+      - name: Build and test direct push
+        if: ${{ steps.push-source.outputs.direct_push == 'true' }}
+        run: |
+          chmod +x gradlew
+          ./gradlew build
 
       - name: Build bootJar
         run: |
