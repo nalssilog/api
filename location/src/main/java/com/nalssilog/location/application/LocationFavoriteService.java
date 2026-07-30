@@ -1,11 +1,14 @@
 package com.nalssilog.location.application;
 
+import com.nalssilog.common.response.PageResponse;
 import com.nalssilog.location.application.dto.LocationInfo;
 import com.nalssilog.location.domain.LocationFavorite;
 import com.nalssilog.location.repository.LocationFavoriteRepository;
 import com.nalssilog.location.repository.LocationRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class LocationFavoriteService {
 
+    private static final int PAGE_SIZE = 5;
+
     private final LocationFavoriteRepository locationFavoriteRepository;
     private final LocationRepository locationRepository;
 
@@ -24,19 +29,29 @@ public class LocationFavoriteService {
     public void addFavorite(Long memberId, Long locationId) {
         locationRepository.getById(locationId);
 
-        if (!locationFavoriteRepository.exists(memberId, locationId)) {
+        if (!locationFavoriteRepository.existsByMemberIdAndLocationId(memberId, locationId)) {
             locationFavoriteRepository.save(LocationFavorite.of(memberId, locationId));
         }
     }
 
     @Transactional
     public void removeFavorite(Long memberId, Long locationId) {
-        locationFavoriteRepository.delete(memberId, locationId);
+        locationFavoriteRepository.deleteByMemberIdAndLocationId(memberId, locationId);
     }
 
-    public List<LocationInfo> listFavorites(Long memberId) {
-        List<Long> locationIds = locationFavoriteRepository.findFavoriteLocationIds(memberId);
+    public PageResponse<LocationInfo> listFavorites(Long memberId, int page) {
+        Page<LocationFavorite> favorites =
+                locationFavoriteRepository.findAllByMemberIdOrderByCreatedAtDescIdDesc(
+                        memberId,
+                        PageRequest.of(page, PAGE_SIZE));
+        List<Long> favoriteIds = favorites.getContent().stream()
+                .map(LocationFavorite::getLocationId)
+                .toList();
 
-        return locationRepository.findByIds(locationIds);
+        return PageResponse.of(
+                locationRepository.findByIds(favoriteIds),
+                page,
+                PAGE_SIZE,
+                favorites.getTotalElements());
     }
 }

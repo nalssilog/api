@@ -5,18 +5,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.location.application.dto.LocationInfo;
+import com.nalssilog.location.application.dto.PopularLocationSnapshotData;
 import com.nalssilog.location.client.KakaoMapClient;
 import com.nalssilog.location.client.KakaoRegion;
-import com.nalssilog.location.config.LocationProperties;
 import com.nalssilog.location.domain.LocationErrorCode;
+import com.nalssilog.location.domain.PopularRankMovement;
 import com.nalssilog.location.repository.LocationRepository;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 @SuppressWarnings("java:S5960") // 표준 src/test 소스의 AssertJ 검증을 운영 코드 assertion으로 오인하는 경고.
 class LocationServiceTest {
@@ -27,7 +31,6 @@ class LocationServiceTest {
     private final LocationService service = new LocationService(
             locationRepository,
             popularLocationSource,
-            new LocationProperties(List.of()),
             kakaoMapClient
     );
 
@@ -37,6 +40,7 @@ class LocationServiceTest {
                 "1168010100", "서울특별시", "강남구", "역삼동", 37.500622, 127.036456);
         LocationInfo expected = new LocationInfo(
                 1L, "서울특별시", "강남구", "역삼동", 37.500622, 127.036456);
+
         when(kakaoMapClient.reverseGeocode(37.5, 127.03)).thenReturn(region);
         when(locationRepository.findOrCreate(region)).thenReturn(expected);
 
@@ -57,63 +61,136 @@ class LocationServiceTest {
 
     @Test
     void searchesJeonbukWithItsCurrentOfficialNameWhenLegacyNameIsEntered() {
-        service.search("전라북도 전주시");
+        PageRequest pageable = PageRequest.of(0, 5);
 
-        verify(locationRepository).searchByKeyword("전북특별자치도 전주시");
+        when(locationRepository.searchByKeyword("전북특별자치도 전주시", pageable))
+                .thenReturn(Page.empty(pageable));
+
+        service.search("전라북도 전주시", 0);
+
+        verify(locationRepository).searchByKeyword("전북특별자치도 전주시", pageable);
     }
 
     @Test
     void searchesIntegratedJeonnamGwangjuWhenLegacyNameIsEntered() {
-        service.search("전라남도 순천시");
+        PageRequest pageable = PageRequest.of(2, 5);
 
-        verify(locationRepository).searchByKeyword("전남광주통합특별시 순천시");
+        when(locationRepository.searchByKeyword("전남광주통합특별시 순천시", pageable))
+                .thenReturn(Page.empty(pageable));
+
+        service.search("전라남도 순천시", 2);
+
+        verify(locationRepository).searchByKeyword("전남광주통합특별시 순천시", pageable);
     }
 
     @Test
-    void fillsPopularLocationsToFiveWithNonDuplicateFeaturedLocations() {
-        List<String> featuredCodes = List.of("code-2", "code-3", "code-4", "code-5", "code-6");
-        LocationService popularService = new LocationService(
-                locationRepository,
-                popularLocationSource,
-                new LocationProperties(featuredCodes),
-                kakaoMapClient
-        );
-        LocationInfo popularOne = location(1L, "인기동1");
-        LocationInfo popularTwo = location(2L, "인기동2");
-        LocationInfo featuredThree = location(3L, "대표동3");
-        LocationInfo featuredFour = location(4L, "대표동4");
-        LocationInfo featuredFive = location(5L, "대표동5");
-        LocationInfo featuredSix = location(6L, "대표동6");
+    void expandsAmbiguousLegacyJeollaNameToBothCurrentRegions() {
+        PageRequest pageable = PageRequest.of(0, 5);
 
-        when(popularLocationSource.topLocationIds(5)).thenReturn(List.of(1L, 2L));
-        when(locationRepository.findByIds(List.of(1L, 2L))).thenReturn(List.of(popularOne, popularTwo));
-        when(locationRepository.findByAdminCodes(featuredCodes)).thenReturn(List.of(
-                popularTwo, featuredThree, featuredFour, featuredFive, featuredSix));
+        when(locationRepository.searchByKeyword("전", pageable))
+                .thenReturn(Page.empty(pageable));
 
-        List<LocationInfo> result = popularService.getPopular();
+        service.search("전라", 0);
 
-        assertThat(result).containsExactly(
-                popularOne, popularTwo, featuredThree, featuredFour, featuredFive);
+        verify(locationRepository).searchByKeyword("전", pageable);
     }
 
     @Test
-    void doesNotLoadFeaturedLocationsWhenFivePopularLocationsExist() {
-        List<Long> popularIds = List.of(1L, 2L, 3L, 4L, 5L);
-        List<LocationInfo> popular = List.of(
-                location(1L, "인기동1"),
-                location(2L, "인기동2"),
-                location(3L, "인기동3"),
-                location(4L, "인기동4"),
-                location(5L, "인기동5")
-        );
-        when(popularLocationSource.topLocationIds(5)).thenReturn(popularIds);
-        when(locationRepository.findByIds(popularIds)).thenReturn(popular);
+    void keepsFollowingTokensWhenLegacyJeollaNameIsEntered() {
+        PageRequest pageable = PageRequest.of(0, 5);
 
-        assertThat(service.getPopular()).containsExactlyElementsOf(popular);
-        verify(locationRepository, never()).findByAdminCodes(List.of());
+        when(locationRepository.searchByKeyword("전 전주시", pageable))
+                .thenReturn(Page.empty(pageable));
+
+        service.search("전라도 전주시", 0);
+
+        verify(locationRepository).searchByKeyword("전 전주시", pageable);
+    }
+
+    @Test
+    void normalizesRepeatedWhitespaceBeforeSearching() {
+        PageRequest pageable = PageRequest.of(0, 5);
+
+        when(locationRepository.searchByKeyword("서울 강남구", pageable))
+                .thenReturn(Page.empty(pageable));
+
+        service.search("  서울   강남구  ", 0);
+
+        verify(locationRepository).searchByKeyword("서울 강남구", pageable);
+    }
+
+    @Test
+    void returnsFiveSearchItemsWithTotalPageMetadata() {
+        List<LocationInfo> items = List.of(
+                location(1L, "동1"),
+                location(2L, "동2"),
+                location(3L, "동3"),
+                location(4L, "동4"),
+                location(5L, "동5"));
+        PageRequest pageable = PageRequest.of(1, 5);
+
+        when(locationRepository.searchByKeyword("서", pageable))
+                .thenReturn(new PageImpl<>(items, pageable, 12));
+
+        var result = service.search("서", 1);
+
+        assertThat(result.items()).containsExactlyElementsOf(items);
+        assertThat(result.page()).isEqualTo(1);
+        assertThat(result.size()).isEqualTo(5);
+        assertThat(result.totalElements()).isEqualTo(12);
+        assertThat(result.totalPages()).isEqualTo(3);
+        assertThat(result.hasPrevious()).isTrue();
+        assertThat(result.hasNext()).isTrue();
+    }
+
+    @Test
+    void enrichesPopularSnapshotWithoutChangingItsRanking() {
+        Instant calculatedAt = Instant.parse("2026-07-30T06:00:00Z");
+        Instant windowStartedAt = calculatedAt.minusSeconds(7 * 24 * 60 * 60);
+        LocationInfo first = location(2L, "인기동1");
+        LocationInfo second = location(1L, "인기동2");
+        PopularLocationSnapshotData snapshot = new PopularLocationSnapshotData(
+                31L,
+                calculatedAt,
+                windowStartedAt,
+                calculatedAt,
+                "UNIQUE_REPORTERS_V1",
+                List.of(
+                        new PopularLocationSnapshotData.Rank(
+                                2L,
+                                1,
+                                3,
+                                2,
+                                PopularRankMovement.UP,
+                                4,
+                                7,
+                                calculatedAt.minusSeconds(60)),
+                        new PopularLocationSnapshotData.Rank(
+                                1L,
+                                2,
+                                1,
+                                -1,
+                                PopularRankMovement.DOWN,
+                                3,
+                                5,
+                                calculatedAt.minusSeconds(120))));
+
+        when(popularLocationSource.latestSnapshot()).thenReturn(snapshot);
+        when(locationRepository.findByIds(List.of(2L, 1L))).thenReturn(List.of(first, second));
+
+        var result = service.getPopular();
+
+        assertThat(result.snapshotId()).isEqualTo(31L);
+        assertThat(result.items()).extracting(item -> item.location().id())
+                .containsExactly(2L, 1L);
+        assertThat(result.items()).extracting(item -> item.rank())
+                .containsExactly(1, 2);
+        assertThat(result.items().getFirst().movement()).isEqualTo(PopularRankMovement.UP);
+        assertThat(result.items().getFirst().uniqueReporterCount()).isEqualTo(4);
     }
 
     private LocationInfo location(Long id, String dong) {
+
         return new LocationInfo(id, "서울특별시", "강남구", dong, 37.5, 127.0);
     }
 }

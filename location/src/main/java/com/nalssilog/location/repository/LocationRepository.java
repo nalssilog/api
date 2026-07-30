@@ -7,19 +7,24 @@ import com.nalssilog.location.application.dto.LocationInfo;
 import com.nalssilog.location.client.KakaoRegion;
 import com.nalssilog.location.domain.Location;
 import com.nalssilog.location.domain.LocationErrorCode;
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.core.types.dsl.StringExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import jakarta.persistence.EntityManager;
-import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.Session;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 서비스 호출용 Location 저장소.
@@ -29,38 +34,86 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class LocationRepository {
 
-    private static final int SEARCH_LIMIT = 20;
-    private static final String INSERT_IF_ABSENT = """
-            insert Location (createdAt, updatedAt, adminCode, sido, sigungu, dong, latitude, longitude)
-            values (:now, :now, :adminCode, :sido, :sigungu, :dong, :latitude, :longitude)
-            on conflict (adminCode) do nothing
-            """;
-
     private final LocationJpaRepository locationJpaRepository;
     private final JPAQueryFactory queryFactory;
-    private final EntityManager entityManager;
 
-    public List<LocationInfo> searchByKeyword(String keyword) {
-        BooleanExpression matchesKeyword = location.sido.containsIgnoreCase(keyword)
-                .or(location.sigungu.containsIgnoreCase(keyword))
-                .or(location.dong.containsIgnoreCase(keyword))
-                .or(location.sido.concat(" ")
-                        .concat(location.sigungu).concat(" ")
-                        .concat(location.dong)
-                        .containsIgnoreCase(keyword));
+    public Page<LocationInfo> searchByKeyword(String keyword, Pageable pageable) {
+        List<String> tokens = Arrays.stream(keyword.split("\\s+"))
+                .filter(token -> !token.isBlank())
+                .toList();
 
-        return queryFactory
+        if (tokens.isEmpty()) {
+
+            return Page.empty(pageable);
+        }
+
+        StringExpression label = location.sido.concat(" ")
+                .concat(location.sigungu).concat(" ")
+                .concat(location.dong);
+        BooleanBuilder matchesKeyword = new BooleanBuilder();
+
+        tokens.forEach(token -> matchesKeyword.and(matchesToken(label, token)));
+
+        String firstToken = tokens.getFirst();
+        NumberExpression<Integer> relevance = new CaseBuilder()
+                .when(location.sido.eq(keyword)
+                        .or(location.sigungu.eq(keyword))
+                        .or(location.dong.eq(keyword))
+                        .or(label.eq(keyword)))
+                .then(0)
+                .when(location.sido.startsWith(firstToken))
+                .then(1)
+                .when(location.sigungu.startsWith(firstToken))
+                .then(2)
+                .when(location.dong.startsWith(firstToken))
+                .then(3)
+                .when(label.startsWith(keyword))
+                .then(4)
+                .otherwise(5);
+
+        List<LocationInfo> items = queryFactory
                 .selectFrom(location)
                 .where(matchesKeyword)
-                .orderBy(location.sido.asc(), location.sigungu.asc(), location.dong.asc())
-                .limit(SEARCH_LIMIT)
+                .orderBy(
+                        relevance.asc(),
+                        location.sido.asc(),
+                        location.sigungu.asc(),
+                        location.dong.asc(),
+                        location.id.asc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
                 .fetch()
                 .stream()
                 .map(LocationInfo::of)
                 .toList();
+        Long totalElements = queryFactory
+                .select(location.count())
+                .from(location)
+                .where(matchesKeyword)
+                .fetchOne();
+
+        return new PageImpl<>(
+                items,
+                pageable,
+                totalElements == null ? 0 : totalElements);
+    }
+
+    private BooleanExpression matchesToken(StringExpression label, String token) {
+        BooleanExpression prefixMatch = location.sido.startsWith(token)
+                .or(location.sigungu.startsWith(token))
+                .or(location.dong.startsWith(token))
+                .or(label.startsWith(token));
+
+        if (token.length() == 1) {
+
+            return prefixMatch;
+        }
+
+        return prefixMatch.or(label.contains(token));
     }
 
     public LocationInfo getById(Long id) {
+
         return locationJpaRepository.findById(id)
                 .map(LocationInfo::of)
                 .orElseThrow(() -> new NalssiLogException(LocationErrorCode.LOCATION_NOT_FOUND));
@@ -78,19 +131,8 @@ public class LocationRepository {
                 .toList();
     }
 
-    /** 대표 지역을 admin_code 순서대로 조회한다(설정에 있으나 DB 에 없는 코드는 조용히 제외). */
-    public List<LocationInfo> findByAdminCodes(List<String> adminCodes) {
-        Map<String, Location> byCode = locationJpaRepository.findByAdminCodeIn(adminCodes).stream()
-                .collect(Collectors.toMap(Location::getAdminCode, Function.identity()));
-
-        return adminCodes.stream()
-                .map(byCode::get)
-                .filter(Objects::nonNull)
-                .map(LocationInfo::of)
-                .toList();
-    }
-
     public boolean isEmpty() {
+
         return locationJpaRepository.count() == 0;
     }
 
@@ -99,24 +141,36 @@ public class LocationRepository {
     }
 
     /**
-     * 카카오 법정동 코드로 지역을 원자적으로 등록한 뒤 반환한다.
-     * QueryDSL JPA가 INSERT를 지원하지 않아 Hibernate HQL upsert를 사용한다.
+     * 카카오 법정동 코드를 먼저 조회하고 없으면 JPA로 등록한다.
+     * 동시에 같은 코드가 등록되면 유니크 키가 승자를 정하고 커밋된 행을 다시 조회한다.
      */
-    @Transactional
     public LocationInfo findOrCreate(KakaoRegion region) {
-        Instant now = Instant.now();
-        entityManager.unwrap(Session.class)
-                .createMutationQuery(INSERT_IF_ABSENT)
-                .setParameter("now", now)
-                .setParameter("adminCode", region.adminCode())
-                .setParameter("sido", region.sido())
-                .setParameter("sigungu", region.sigungu())
-                .setParameter("dong", region.dong())
-                .setParameter("latitude", region.latitude())
-                .setParameter("longitude", region.longitude())
-                .executeUpdate();
 
         return locationJpaRepository.findByAdminCode(region.adminCode())
+                .map(LocationInfo::of)
+                .orElseGet(() -> saveOrLoadConcurrent(region));
+    }
+
+    private LocationInfo saveOrLoadConcurrent(KakaoRegion region) {
+        try {
+            Location location = Location.of(
+                    region.adminCode(),
+                    region.sido(),
+                    region.sigungu(),
+                    region.dong(),
+                    region.latitude(),
+                    region.longitude());
+
+            return LocationInfo.of(locationJpaRepository.saveAndFlush(location));
+        } catch (DataIntegrityViolationException exception) {
+
+            return findByAdminCodeOrThrow(region.adminCode());
+        }
+    }
+
+    private LocationInfo findByAdminCodeOrThrow(String adminCode) {
+
+        return locationJpaRepository.findByAdminCode(adminCode)
                 .map(LocationInfo::of)
                 .orElseThrow(() -> new NalssiLogException(LocationErrorCode.LOCATION_NOT_FOUND));
     }

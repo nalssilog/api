@@ -3,6 +3,7 @@ package com.nalssilog.report.repository;
 import static com.nalssilog.report.domain.QWeatherReport.weatherReport;
 
 import com.nalssilog.common.exception.NalssiLogException;
+import com.nalssilog.report.application.dto.PopularLocationAggregate;
 import com.nalssilog.report.application.dto.ReportData;
 import com.nalssilog.report.application.dto.WeatherStatsData;
 import com.nalssilog.report.domain.ActorType;
@@ -13,6 +14,7 @@ import com.nalssilog.report.domain.Temperature;
 import com.nalssilog.report.domain.WeatherReport;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.DateTimeExpression;
 import com.querydsl.core.types.dsl.EnumPath;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -39,6 +41,7 @@ public class WeatherReportRepository {
     private final EntityManager entityManager;
 
     public ReportData save(WeatherReport report) {
+
         return ReportData.of(weatherReportJpaRepository.save(report));
     }
 
@@ -47,6 +50,7 @@ public class WeatherReportRepository {
      */
     public int anonymizeAuthor(Long memberId) {
         entityManager.flush();
+
         long affectedRows = queryFactory
                 .update(weatherReport)
                 .set(weatherReport.authorType, ActorType.ANONYMOUS)
@@ -57,17 +61,20 @@ public class WeatherReportRepository {
                         weatherReport.authorMemberId.eq(memberId)
                 )
                 .execute();
+
         entityManager.clear();
 
         return Math.toIntExact(affectedRows);
     }
 
     public ReportData getReport(Long reportId) {
+
         return ReportData.of(getReportEntity(reportId));
     }
 
     /** 삭제처럼 관리 엔티티가 필요한 쓰기 유스케이스 전용. 반드시 트랜잭션 안에서 사용한다. */
     public WeatherReport getReportEntity(Long reportId) {
+
         return weatherReportJpaRepository.findById(reportId)
                 .orElseThrow(() -> new NalssiLogException(ReportErrorCode.REPORT_NOT_FOUND));
     }
@@ -99,16 +106,41 @@ public class WeatherReportRepository {
                 .toList();
     }
 
-    /** 최근({@code since} 이후) 제보 수가 많은 순으로 상위 locationId 목록(인기 지역 랭킹용). */
-    public List<Long> topLocationIds(Instant since, int size) {
-        return queryFactory
-                .select(weatherReport.locationId)
+    public List<PopularLocationAggregate> findPopularLocationAggregates(
+            Instant windowStartedAt,
+            Instant windowEndedAt,
+            int limit
+    ) {
+        NumberExpression<Long> uniqueReporterCount = weatherReport.authorMemberId.countDistinct()
+                .add(weatherReport.authorAnonymousKey.countDistinct());
+        NumberExpression<Long> reportCount = weatherReport.id.count();
+        DateTimeExpression<Instant> latestReportAt = weatherReport.createdAt.max();
+        List<Tuple> rows = queryFactory
+                .select(
+                        weatherReport.locationId,
+                        uniqueReporterCount,
+                        reportCount,
+                        latestReportAt)
                 .from(weatherReport)
-                .where(weatherReport.createdAt.goe(since))
+                .where(
+                        weatherReport.createdAt.goe(windowStartedAt),
+                        weatherReport.createdAt.lt(windowEndedAt))
                 .groupBy(weatherReport.locationId)
-                .orderBy(weatherReport.id.count().desc())
-                .limit(size)
+                .orderBy(
+                        uniqueReporterCount.desc(),
+                        reportCount.desc(),
+                        latestReportAt.desc(),
+                        weatherReport.locationId.asc())
+                .limit(limit)
                 .fetch();
+
+        return rows.stream()
+                .map(row -> new PopularLocationAggregate(
+                        row.get(weatherReport.locationId),
+                        value(row.get(uniqueReporterCount)),
+                        value(row.get(reportCount)),
+                        row.get(latestReportAt)))
+                .toList();
     }
 
     /** 최근({@code since} 이후) 제보의 3축 분포 + 제보 수 집계. */
@@ -126,6 +158,7 @@ public class WeatherReportRepository {
 
     private List<WeatherReport> findAfterLocationCursor(
             Long locationId, Instant cursorTime, Long cursorId, int limit) {
+
         return queryFactory
                 .selectFrom(weatherReport)
                 .where(
@@ -139,6 +172,7 @@ public class WeatherReportRepository {
 
     private List<WeatherReport> findAfterMemberCursor(
             Long memberId, Instant cursorTime, Long cursorId, int limit) {
+
         return queryFactory
                 .selectFrom(weatherReport)
                 .where(
@@ -152,6 +186,7 @@ public class WeatherReportRepository {
     }
 
     private BooleanExpression beforeCursor(Instant cursorTime, Long cursorId) {
+
         return weatherReport.createdAt.lt(cursorTime)
                 .or(weatherReport.createdAt.eq(cursorTime).and(weatherReport.id.lt(cursorId)));
     }
@@ -170,8 +205,14 @@ public class WeatherReportRepository {
                 .fetch();
 
         Map<E, Long> counts = new EnumMap<>(type);
+
         rows.forEach(row -> counts.put(row.get(axis), row.get(count)));
 
         return counts;
+    }
+
+    private static long value(Long value) {
+
+        return value == null ? 0 : value;
     }
 }
