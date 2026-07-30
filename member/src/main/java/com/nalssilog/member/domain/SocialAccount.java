@@ -60,7 +60,13 @@ public class SocialAccount extends BaseTimeEntity {
     }
 
     /** 추가 연동은 로그인이 아니므로 실제로 이 제공자로 로그인하기 전까지 로그인 시각을 비워 둔다. */
-    public static SocialAccount link(Member member, Provider provider, String providerUserId, String providerEmail) {
+    public static SocialAccount link(
+            Member member,
+            Provider provider,
+            String providerUserId,
+            String providerEmail
+    ) {
+
         return create(member, provider, providerUserId, providerEmail);
     }
 

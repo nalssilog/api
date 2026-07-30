@@ -293,7 +293,7 @@ public class MobileOAuthService {
 
             return MobileOAuthGrant.linkSuccess(
                     member.id(),
-                    principal.userInfo().provider(),
+                    ticket.provider(),
                     true);
         } catch (NalssiLogException _) {
 
@@ -343,6 +343,8 @@ public class MobileOAuthService {
                 member.status(),
                 grant.provider(),
                 device);
+
+        memberClient.recordLogin(member.id(), grant.provider());
 
         return new ExchangeResult(
                 result, tokens, member, null, null, null, null, List.of());

@@ -26,7 +26,6 @@ public class MemberAccountService {
     private final ApplicationEventPublisher eventPublisher;
 
     /** 소셜 인증 결과 분기(생성·병합 안 함). 가입된 소셜=EXISTING, 이메일로 기존 회원 있으면 LINK_REQUIRED, 없으면 NEW. */
-    @Transactional
     public SocialLoginResult resolveSocialLogin(Provider provider, String providerUserId, String email) {
         Optional<SocialAccount> linked = socialAccountRepository.findByProviderAndProviderUserId(
                 provider,
@@ -34,8 +33,6 @@ public class MemberAccountService {
 
         if (linked.isPresent()) {
             SocialAccount account = linked.get();
-
-            account.touchLogin();
 
             return SocialLoginResult.existing(account.getMember().getId(), account.getMember().getStatus());
         }
@@ -52,7 +49,13 @@ public class MemberAccountService {
 
     /** 기존 회원에 새 소셜 계정 연동(호출 전 재인증으로 소유권 증명 전제). */
     @Transactional
-    public MemberInfo linkSocial(Long targetMemberId, Provider provider, String providerUserId, String email) {
+    public MemberInfo linkSocial(
+            Long targetMemberId,
+            Provider provider,
+            String providerUserId,
+            String email
+    ) {
+
         if (socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId).isPresent()) {
             throw new NalssiLogException(MemberErrorCode.SOCIAL_ACCOUNT_IN_USE);
         }
@@ -62,6 +65,17 @@ public class MemberAccountService {
         socialAccountRepository.save(SocialAccount.link(member, provider, providerUserId, email));
 
         return memberRepository.getMemberInfo(targetMemberId);
+    }
+
+    /** 최종 로그인 세션 발급에 사용한 소셜 계정의 로그인 시각만 갱신한다. */
+    @Transactional
+    public void recordLogin(Long memberId, Provider provider) {
+        SocialAccount account = socialAccountRepository
+                .findByMemberIdAndProvider(memberId, provider)
+                .orElseThrow(() -> new NalssiLogException(
+                        MemberErrorCode.SOCIAL_ACCOUNT_NOT_FOUND));
+
+        account.touchLogin();
     }
 
     /** 회원 탈퇴. 익명화 + 소셜 삭제 + 제보 익명화용 MemberWithdrawnEvent 발행. 세션·쿠키 정리는 auth. */

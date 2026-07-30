@@ -45,6 +45,10 @@ public class MemberClient {
         return memberAccountService.getMemberInfo(memberId);
     }
 
+    public void recordLogin(Long memberId, Provider provider) {
+        memberAccountService.recordLogin(memberId, provider);
+    }
+
     public Optional<MemberInfo> findMemberInfo(Long memberId) {
 
         return memberAccountService.findMemberInfo(memberId);

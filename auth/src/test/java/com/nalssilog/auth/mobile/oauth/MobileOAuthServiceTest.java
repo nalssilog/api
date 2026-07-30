@@ -15,7 +15,9 @@ import com.nalssilog.auth.device.DeviceInfo;
 import com.nalssilog.auth.member.MemberClient;
 import com.nalssilog.auth.oauth.OAuthUserInfo;
 import com.nalssilog.auth.oauth.SocialAuthPrincipal;
+import com.nalssilog.auth.ticket.AuthChannel;
 import com.nalssilog.auth.ticket.AuthTicketStore;
+import com.nalssilog.auth.ticket.LinkTicket;
 import com.nalssilog.auth.token.AuthTokenService;
 import com.nalssilog.auth.token.TokenPair;
 import com.nalssilog.common.exception.NalssiLogException;
@@ -187,6 +189,107 @@ class MobileOAuthServiceTest {
                 MemberStatus.ACTIVE,
                 Provider.KAKAO,
                 device);
+        verify(memberClient).recordLogin(7L, Provider.KAKAO);
+    }
+
+    @Test
+    void loginLinkIssuesSessionForNewlyLinkedProvider() {
+        String verifier = "v".repeat(43);
+        DeviceInfo device = new DeviceInfo(
+                "IOS · iPhone · 0.1.0",
+                "203.0.113.10");
+        MobileOAuthTransaction transaction = new MobileOAuthTransaction(
+                MobileOAuthPurpose.LOGIN_LINK_REAUTH,
+                Provider.NAVER,
+                REDIRECT_URI,
+                CHALLENGE,
+                STATE,
+                "link-ticket",
+                7L);
+        LinkTicket ticket = new LinkTicket(
+                Provider.KAKAO,
+                "new-kakao-user",
+                "user@example.com",
+                7L,
+                List.of(Provider.NAVER),
+                AuthChannel.MOBILE);
+        OAuthUserInfo linkedUserInfo = new OAuthUserInfo(
+                Provider.KAKAO,
+                "new-kakao-user",
+                "user@example.com",
+                null);
+        SocialAuthPrincipal reauthenticatedPrincipal = new SocialAuthPrincipal(
+                SocialLoginResult.existing(7L, MemberStatus.ACTIVE),
+                new OAuthUserInfo(
+                        Provider.NAVER,
+                        "existing-naver-user",
+                        "user@example.com",
+                        "사용자"),
+                Map.of());
+        MemberInfo member = linkedMember();
+        TokenPair tokens = new TokenPair(
+                "access-token",
+                "refresh-token",
+                Duration.ofDays(14));
+
+        when(transactionStore.take("transaction"))
+                .thenReturn(Optional.of(transaction));
+        when(ticketStore.findLink("link-ticket")).thenReturn(Optional.of(ticket));
+        when(ticketStore.isLinkConsented("link-ticket")).thenReturn(true);
+        when(memberClient.linkSocial(7L, linkedUserInfo)).thenReturn(member);
+
+        service.complete("transaction", reauthenticatedPrincipal);
+
+        verify(memberClient, never()).recordLogin(any(), any());
+
+        ArgumentCaptor<MobileOAuthGrant> grantCaptor =
+                ArgumentCaptor.forClass(MobileOAuthGrant.class);
+
+        verify(codeStore).save(
+                any(),
+                grantCaptor.capture(),
+                org.mockito.ArgumentMatchers.eq(REDIRECT_URI),
+                org.mockito.ArgumentMatchers.eq(CHALLENGE));
+
+        MobileOAuthGrant grant = grantCaptor.getValue();
+
+        assertThat(grant).isEqualTo(MobileOAuthGrant.linkSuccess(
+                7L,
+                Provider.KAKAO,
+                true));
+
+        when(codeStore.consume(
+                org.mockito.ArgumentMatchers.eq("one-time-code"),
+                org.mockito.ArgumentMatchers.eq(REDIRECT_URI),
+                any())).thenReturn(grant);
+        when(memberClient.getMemberInfo(7L)).thenReturn(member);
+        when(authTokenService.issue(
+                7L,
+                MemberStatus.ACTIVE,
+                Provider.KAKAO,
+                device)).thenReturn(tokens);
+
+        MobileOAuthService.ExchangeResult result = service.exchange(
+                "one-time-code",
+                verifier,
+                REDIRECT_URI,
+                device);
+
+        assertThat(result.result()).isEqualTo(MobileAuthResult.LINK_SUCCESS);
+        assertThat(result.tokens()).isEqualTo(tokens);
+
+        verify(authTokenService).issue(
+                7L,
+                MemberStatus.ACTIVE,
+                Provider.KAKAO,
+                device);
+        verify(authTokenService, never()).issue(
+                7L,
+                MemberStatus.ACTIVE,
+                Provider.NAVER,
+                device);
+        verify(memberClient).recordLogin(7L, Provider.KAKAO);
+        verify(memberClient, never()).recordLogin(7L, Provider.NAVER);
     }
 
     @Test
@@ -217,6 +320,20 @@ class MobileOAuthServiceTest {
                 MemberStatus.ACTIVE,
                 Provider.KAKAO,
                 List.of(Provider.KAKAO));
+    }
+
+    private MemberInfo linkedMember() {
+
+        return new MemberInfo(
+                7L,
+                "사용자",
+                "구름산책",
+                "user@example.com",
+                AvatarType.PRESET,
+                "1",
+                MemberStatus.ACTIVE,
+                Provider.KAKAO,
+                List.of(Provider.NAVER, Provider.KAKAO));
     }
 
     private AuthProperties properties() {

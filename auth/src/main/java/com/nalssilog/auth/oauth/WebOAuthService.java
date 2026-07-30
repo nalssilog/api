@@ -147,7 +147,7 @@ public class WebOAuthService {
         return authenticated(
                 member.id(),
                 member.status(),
-                principal.userInfo().provider(),
+                ticket.provider(),
                 LINK_SUCCESS,
                 device,
                 true);
@@ -200,6 +200,8 @@ public class WebOAuthService {
                 status,
                 provider,
                 device);
+
+        memberClient.recordLogin(memberId, provider);
 
         return new Completion(
                 result,
