@@ -9,7 +9,7 @@ services:
     container_name: nalssilog-app-dev
     restart: unless-stopped
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/config/
     env_file:
       - .env.dev

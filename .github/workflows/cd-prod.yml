@@ -124,6 +124,10 @@ jobs:
           OAUTH_GOOGLE_CLIENT_SECRET: ${{ secrets.OAUTH_GOOGLE_CLIENT_SECRET }}
           OAUTH_KAKAO_CLIENT_ID: ${{ secrets.OAUTH_KAKAO_CLIENT_ID }}
           OAUTH_KAKAO_CLIENT_SECRET: ${{ secrets.OAUTH_KAKAO_CLIENT_SECRET }}
+          APPLE_CLIENT_ID: ${{ secrets.PROD_OAUTH_APPLE_CLIENT_ID }}
+          APPLE_TEAM_ID: ${{ secrets.PROD_OAUTH_APPLE_TEAM_ID }}
+          APPLE_KEY_ID: ${{ secrets.PROD_OAUTH_APPLE_KEY_ID }}
+          APPLE_PRIVATE_KEY_BASE64: ${{ secrets.PROD_OAUTH_APPLE_PRIVATE_KEY_BASE64 }}
           PROD_R2_PUBLIC_BASE_URL: ${{ secrets.PROD_R2_PUBLIC_BASE_URL }}
           PROD_R2_ENDPOINT: ${{ secrets.PROD_R2_ENDPOINT }}
           PROD_R2_BUCKET: ${{ secrets.PROD_R2_BUCKET }}
@@ -133,7 +137,7 @@ jobs:
           host: ${{ secrets.EC2_HOST_PROD }}
           username: ${{ secrets.EC2_USER_PROD }}
           key: ${{ secrets.EC2_SSH_KEY_PROD }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,DB_HOST,DB_PORT,DB_NAME,DB_USERNAME,DB_PASSWORD,REDIS_HOST,REDIS_PORT,REDIS_PASSWORD,OAUTH_GOOGLE_CLIENT_ID,OAUTH_GOOGLE_CLIENT_SECRET,OAUTH_KAKAO_CLIENT_ID,OAUTH_KAKAO_CLIENT_SECRET,PROD_R2_PUBLIC_BASE_URL,PROD_R2_ENDPOINT,PROD_R2_BUCKET,PROD_R2_ACCESS_KEY,PROD_R2_SECRET_KEY
+          envs: GHCR_USERNAME,GHCR_TOKEN,DB_HOST,DB_PORT,DB_NAME,DB_USERNAME,DB_PASSWORD,REDIS_HOST,REDIS_PORT,REDIS_PASSWORD,OAUTH_GOOGLE_CLIENT_ID,OAUTH_GOOGLE_CLIENT_SECRET,OAUTH_KAKAO_CLIENT_ID,OAUTH_KAKAO_CLIENT_SECRET,APPLE_CLIENT_ID,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PRIVATE_KEY_BASE64,PROD_R2_PUBLIC_BASE_URL,PROD_R2_ENDPOINT,PROD_R2_BUCKET,PROD_R2_ACCESS_KEY,PROD_R2_SECRET_KEY
           script: |
             set -eu
             cd /home/ubuntu/nalssilog-prod-api
@@ -143,8 +147,24 @@ jobs:
                 exit 1
               fi
             done
+            APPLE_VALUE_COUNT=0
+            for name in APPLE_CLIENT_ID APPLE_TEAM_ID APPLE_KEY_ID APPLE_PRIVATE_KEY_BASE64; do
+              if [ -n "$(printenv "$name" 2>/dev/null || true)" ]; then
+                APPLE_VALUE_COUNT=$((APPLE_VALUE_COUNT + 1))
+              fi
+            done
+            if [ "$APPLE_VALUE_COUNT" -ne 0 ] && [ "$APPLE_VALUE_COUNT" -ne 4 ]; then
+              echo "Apple OAuth secrets must be configured all together."
+              exit 1
+            fi
+            ACTIVE_PROFILES=prod
+            if [ "$APPLE_VALUE_COUNT" -eq 4 ]; then
+              ACTIVE_PROFILES=prod,apple
+            fi
+            export SPRING_PROFILES_ACTIVE=$ACTIVE_PROFILES
             umask 077
             cat > .env.prod <<EOF
+            SPRING_PROFILES_ACTIVE=$ACTIVE_PROFILES
             PROD_DB_URL=jdbc:postgresql://$DB_HOST:$DB_PORT/$DB_NAME?sslmode=require
             PROD_DB_USERNAME=$DB_USERNAME
             PROD_DB_PASSWORD=$DB_PASSWORD
@@ -155,6 +175,10 @@ jobs:
             OAUTH_GOOGLE_CLIENT_SECRET=${OAUTH_GOOGLE_CLIENT_SECRET:-dummy}
             OAUTH_KAKAO_CLIENT_ID=${OAUTH_KAKAO_CLIENT_ID:-dummy}
             OAUTH_KAKAO_CLIENT_SECRET=${OAUTH_KAKAO_CLIENT_SECRET:-dummy}
+            OAUTH_APPLE_CLIENT_ID=${APPLE_CLIENT_ID:-}
+            OAUTH_APPLE_TEAM_ID=${APPLE_TEAM_ID:-}
+            OAUTH_APPLE_KEY_ID=${APPLE_KEY_ID:-}
+            OAUTH_APPLE_PRIVATE_KEY_BASE64=${APPLE_PRIVATE_KEY_BASE64:-}
             PROD_R2_PUBLIC_BASE_URL=$PROD_R2_PUBLIC_BASE_URL
             PROD_R2_ENDPOINT=$PROD_R2_ENDPOINT
             PROD_R2_BUCKET=$PROD_R2_BUCKET
