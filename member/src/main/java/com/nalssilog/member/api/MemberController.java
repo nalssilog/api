@@ -38,47 +38,57 @@ public class MemberController {
 
     @GetMapping("/nickname/availability")
     public NicknameAvailabilityResponse checkNickname(@RequestParam @NotBlank String nickname) {
+
         return new NicknameAvailabilityResponse(memberProfileService.isNicknameAvailable(nickname));
     }
 
     @GetMapping("/me")
     public MemberMeResponse me(
         @AuthenticationPrincipal Long memberId,
-        @CurrentSecurityContext(expression = "authentication.details") Provider currentProvider
+        @CurrentSecurityContext(expression = "authentication.details.provider") Provider currentProvider
     ) {
+
         return MemberMeResponse.from(memberProfileService.getMe(memberId), currentProvider);
     }
 
     @GetMapping("/{id}")
     public MemberPublicProfileResponse publicProfile(@PathVariable Long id) {
+
         return MemberPublicProfileResponse.from(memberProfileService.getPublicProfile(id));
     }
 
     @PatchMapping("/me/name")
     public MemberMeResponse changeName(
         @AuthenticationPrincipal Long memberId,
-        @CurrentSecurityContext(expression = "authentication.details") Provider currentProvider,
+        @CurrentSecurityContext(expression = "authentication.details.provider") Provider currentProvider,
         @Valid @RequestBody ChangeNameRequest request
     ) {
+
         return MemberMeResponse.from(memberProfileService.changeName(memberId, request.name()), currentProvider);
     }
 
     @PatchMapping("/me/nickname")
     public MemberMeResponse changeNickname(
         @AuthenticationPrincipal Long memberId,
-        @CurrentSecurityContext(expression = "authentication.details") Provider currentProvider,
+        @CurrentSecurityContext(expression = "authentication.details.provider") Provider currentProvider,
         @Valid @RequestBody ChangeNicknameRequest request
     ) {
-        return MemberMeResponse.from(memberProfileService.changeNickname(memberId, request.nickname()), currentProvider);
+
+        return MemberMeResponse.from(
+                memberProfileService.changeNickname(memberId, request.nickname()),
+                currentProvider);
     }
 
     @PatchMapping("/me/avatar")
     public MemberMeResponse changeAvatar(
         @AuthenticationPrincipal Long memberId,
-        @CurrentSecurityContext(expression = "authentication.details") Provider currentProvider,
+        @CurrentSecurityContext(expression = "authentication.details.provider") Provider currentProvider,
         @Valid @RequestBody ChangeAvatarRequest request
     ) {
-        return MemberMeResponse.from(memberProfileService.changeAvatar(memberId, request.type(), request.value()), currentProvider);
+
+        return MemberMeResponse.from(
+                memberProfileService.changeAvatar(memberId, request.type(), request.value()),
+                currentProvider);
     }
 
     @PostMapping("/me/avatar/presign")
@@ -86,11 +96,14 @@ public class MemberController {
         @AuthenticationPrincipal Long memberId,
         @Valid @RequestBody AvatarPresignRequest request
     ) {
-        return AvatarPresignResponse.from(memberProfileService.presignAvatar(memberId, request.contentType(), request.size()));
+
+        return AvatarPresignResponse.from(
+                memberProfileService.presignAvatar(memberId, request.contentType(), request.size()));
     }
 
     @GetMapping("/me/social-accounts")
     public List<SocialAccountResponse> socialAccounts(@AuthenticationPrincipal Long memberId) {
+
         return memberProfileService.getSocialAccounts(memberId).stream()
                 .map(SocialAccountResponse::from)
                 .toList();
@@ -100,7 +113,7 @@ public class MemberController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unlinkSocial(
         @AuthenticationPrincipal Long memberId,
-        @CurrentSecurityContext(expression = "authentication.details") Provider currentProvider,
+        @CurrentSecurityContext(expression = "authentication.details.provider") Provider currentProvider,
         @PathVariable String provider
     ) {
         memberProfileService.unlinkSocial(memberId, Provider.from(provider), currentProvider);

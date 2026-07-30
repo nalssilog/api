@@ -6,4 +6,5 @@ dependencies {
     api "io.github.openfeign.querydsl:querydsl-jpa:${querydslVersion}"
 
     implementation 'io.hypersistence:hypersistence-tsid:2.1.4'
+    implementation 'org.springframework.security:spring-security-web'
 }

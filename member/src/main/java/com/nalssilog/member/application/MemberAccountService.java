@@ -28,16 +28,20 @@ public class MemberAccountService {
     /** 소셜 인증 결과 분기(생성·병합 안 함). 가입된 소셜=EXISTING, 이메일로 기존 회원 있으면 LINK_REQUIRED, 없으면 NEW. */
     @Transactional
     public SocialLoginResult resolveSocialLogin(Provider provider, String providerUserId, String email) {
-        Optional<SocialAccount> linked = socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId);
+        Optional<SocialAccount> linked = socialAccountRepository.findByProviderAndProviderUserId(
+                provider,
+                providerUserId);
 
         if (linked.isPresent()) {
             SocialAccount account = linked.get();
+
             account.touchLogin();
 
             return SocialLoginResult.existing(account.getMember().getId(), account.getMember().getStatus());
         }
 
         if (email == null || email.isBlank()) {
+
             return SocialLoginResult.newMember(email);
         }
 
@@ -54,6 +58,7 @@ public class MemberAccountService {
         }
 
         Member member = memberRepository.getMember(targetMemberId);
+
         socialAccountRepository.save(SocialAccount.link(member, provider, providerUserId, email));
 
         return memberRepository.getMemberInfo(targetMemberId);
@@ -71,10 +76,22 @@ public class MemberAccountService {
     }
 
     public MemberInfo getMemberInfo(Long memberId) {
+
         return memberRepository.getMemberInfo(memberId);
     }
 
     public Optional<MemberInfo> findMemberInfo(Long memberId) {
+
         return memberRepository.findMemberInfo(memberId);
+    }
+
+    public Optional<MemberInfo> findMemberInfo(
+            Provider provider,
+            String providerUserId
+    ) {
+
+        return socialAccountRepository
+                .findByProviderAndProviderUserId(provider, providerUserId)
+                .map(account -> memberRepository.getMemberInfo(account.getMember().getId()));
     }
 }

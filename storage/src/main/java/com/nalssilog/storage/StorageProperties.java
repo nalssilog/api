@@ -15,6 +15,24 @@ public record StorageProperties(
         boolean verifyUpload
 ) {
 
-    public record R2(String endpoint, String accessKey, String secretKey, String bucket) {
+    /**
+     * {@code endpoint} is used by the backend for HEAD/delete calls. When the backend runs inside
+     * Docker, {@code presignEndpoint} can point at the LAN-visible host used in the signed URL.
+     * If omitted, both operations use {@code endpoint}.
+     */
+    public record R2(
+            String endpoint,
+            String presignEndpoint,
+            String accessKey,
+            String secretKey,
+            String bucket
+    ) {
+
+        public String effectivePresignEndpoint() {
+
+            return presignEndpoint == null || presignEndpoint.isBlank()
+                    ? endpoint
+                    : presignEndpoint;
+        }
     }
 }

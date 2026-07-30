@@ -23,7 +23,7 @@ public class StorageConfig {
         StorageProperties.R2 r2 = properties.r2();
 
         return S3Presigner.builder()
-                .endpointOverride(URI.create(r2.endpoint()))
+                .endpointOverride(URI.create(r2.effectivePresignEndpoint()))
                 .region(Region.of("auto"))
                 .credentialsProvider(credentials(r2))
                 .serviceConfiguration(S3Configuration.builder()
@@ -48,6 +48,7 @@ public class StorageConfig {
     }
 
     private StaticCredentialsProvider credentials(StorageProperties.R2 r2) {
+
         return StaticCredentialsProvider.create(AwsBasicCredentials.create(r2.accessKey(), r2.secretKey()));
     }
 }
