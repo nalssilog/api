@@ -1,17 +1,25 @@
 package com.nalssilog.location.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.common.response.PageResponse;
 import com.nalssilog.location.application.dto.LocationInfo;
+import com.nalssilog.location.domain.LocationErrorCode;
 import com.nalssilog.location.domain.LocationFavorite;
 import com.nalssilog.location.repository.LocationFavoriteRepository;
 import com.nalssilog.location.repository.LocationRepository;
+import java.sql.SQLException;
 import java.util.List;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -24,6 +32,39 @@ class LocationFavoriteServiceTest {
             mock(LocationRepository.class);
     private final LocationFavoriteService service =
             new LocationFavoriteService(favoriteRepository, locationRepository);
+
+    @Test
+    void existingFavoriteIsIdempotent() {
+        when(favoriteRepository.existsByMemberIdAndLocationId(7L, 11L))
+                .thenReturn(true);
+
+        service.addFavorite(7L, 11L);
+
+        verify(locationRepository).getById(11L);
+        verify(favoriteRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void concurrentFavoriteCollisionBecomesDomainConflict() {
+        DataIntegrityViolationException collision = new DataIntegrityViolationException(
+                "duplicate favorite",
+                new ConstraintViolationException(
+                        "duplicate favorite",
+                        new SQLException(),
+                        "uk_location_favorite_member_location"));
+
+        when(favoriteRepository.existsByMemberIdAndLocationId(7L, 11L))
+                .thenReturn(false);
+        when(favoriteRepository.saveAndFlush(any(LocationFavorite.class)))
+                .thenThrow(collision);
+
+        NalssiLogException exception = catchThrowableOfType(
+                NalssiLogException.class,
+                () -> service.addFavorite(7L, 11L));
+
+        assertThat(exception.getErrorCode())
+                .isEqualTo(LocationErrorCode.FAVORITE_ALREADY_EXISTS);
+    }
 
     @Test
     void loadsFavoritesInFixedFiveItemPagesWithTotals() {

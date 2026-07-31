@@ -1,7 +1,18 @@
 package com.nalssilog.member.application;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.member.application.dto.MemberInfo;
+import com.nalssilog.member.application.dto.MemberSummary;
 import com.nalssilog.member.application.dto.SocialLoginResult;
 import com.nalssilog.member.domain.Member;
 import com.nalssilog.member.domain.MemberErrorCode;
@@ -10,102 +21,146 @@ import com.nalssilog.member.domain.SocialAccount;
 import com.nalssilog.member.domain.event.MemberWithdrawnEvent;
 import com.nalssilog.member.repository.MemberRepository;
 import com.nalssilog.member.repository.SocialAccountRepository;
-import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class MemberAccountService {
 
-    private final MemberRepository memberRepository;
-    private final SocialAccountRepository socialAccountRepository;
-    private final ApplicationEventPublisher eventPublisher;
+	private static final String PROVIDER_USER_CONSTRAINT =
+		"uk_social_account_provider_user";
+	private static final String MEMBER_PROVIDER_CONSTRAINT =
+		"uk_social_account_member_provider";
 
-    /** 소셜 인증 결과 분기(생성·병합 안 함). 가입된 소셜=EXISTING, 이메일로 기존 회원 있으면 LINK_REQUIRED, 없으면 NEW. */
-    public SocialLoginResult resolveSocialLogin(Provider provider, String providerUserId, String email) {
-        Optional<SocialAccount> linked = socialAccountRepository.findByProviderAndProviderUserId(
-                provider,
-                providerUserId);
+	private final MemberRepository memberRepository;
+	private final SocialAccountRepository socialAccountRepository;
+	private final ApplicationEventPublisher eventPublisher;
 
-        if (linked.isPresent()) {
-            SocialAccount account = linked.get();
+	private static RuntimeException translateSocialLinkConflict(
+		DataIntegrityViolationException exception
+	) {
+		String constraintName = constraintName(exception);
 
-            return SocialLoginResult.existing(account.getMember().getId(), account.getMember().getStatus());
-        }
+		if (PROVIDER_USER_CONSTRAINT.equalsIgnoreCase(constraintName)) {
+			return new NalssiLogException(MemberErrorCode.SOCIAL_ACCOUNT_IN_USE);
+		}
+		if (MEMBER_PROVIDER_CONSTRAINT.equalsIgnoreCase(constraintName)) {
+			return new NalssiLogException(MemberErrorCode.ACCOUNT_ALREADY_LINKED);
+		}
 
-        if (email == null || email.isBlank()) {
+		return exception;
+	}
 
-            return SocialLoginResult.newMember(email);
-        }
+	private static String constraintName(Throwable throwable) {
+		for (Throwable cause = throwable; cause != null; cause = cause.getCause()) {
+			if (cause instanceof ConstraintViolationException constraintViolation) {
+				return constraintViolation.getConstraintName();
+			}
+		}
 
-        return memberRepository.findMemberInfoByEmail(email)
-                .map(found -> SocialLoginResult.linkRequired(found.id(), email, found.connectedProviders()))
-                .orElseGet(() -> SocialLoginResult.newMember(email));
-    }
+		return null;
+	}
 
-    /** 기존 회원에 새 소셜 계정 연동(호출 전 재인증으로 소유권 증명 전제). */
-    @Transactional
-    public MemberInfo linkSocial(
-            Long targetMemberId,
-            Provider provider,
-            String providerUserId,
-            String email
-    ) {
+	/** 소셜 인증 결과 분기(생성·병합 안 함). 가입된 소셜=EXISTING, 이메일로 기존 회원 있으면 LINK_REQUIRED, 없으면 NEW. */
+	public SocialLoginResult resolveSocialLogin(Provider provider, String providerUserId, String email) {
+		Optional<SocialAccount> linked = socialAccountRepository.findByProviderAndProviderUserId(
+			provider,
+			providerUserId);
 
-        if (socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId).isPresent()) {
-            throw new NalssiLogException(MemberErrorCode.SOCIAL_ACCOUNT_IN_USE);
-        }
+		if (linked.isPresent()) {
+			SocialAccount account = linked.get();
 
-        Member member = memberRepository.getMember(targetMemberId);
+			return SocialLoginResult.existing(account.getMember().getId(), account.getMember().getStatus());
+		}
 
-        socialAccountRepository.save(SocialAccount.link(member, provider, providerUserId, email));
+		if (email == null || email.isBlank()) {
+			return SocialLoginResult.newMember(email);
+		}
 
-        return memberRepository.getMemberInfo(targetMemberId);
-    }
+		return memberRepository.findMemberInfoByEmail(email)
+			.map(found -> SocialLoginResult.linkRequired(found.id(), email, found.connectedProviders()))
+			.orElseGet(() -> SocialLoginResult.newMember(email));
+	}
 
-    /** 최종 로그인 세션 발급에 사용한 소셜 계정의 로그인 시각만 갱신한다. */
-    @Transactional
-    public void recordLogin(Long memberId, Provider provider) {
-        SocialAccount account = socialAccountRepository
-                .findByMemberIdAndProvider(memberId, provider)
-                .orElseThrow(() -> new NalssiLogException(
-                        MemberErrorCode.SOCIAL_ACCOUNT_NOT_FOUND));
+	/** 기존 회원에 새 소셜 계정 연동(호출 전 재인증으로 소유권 증명 전제). */
+	@Transactional
+	public MemberInfo linkSocial(
+		Long targetMemberId,
+		Provider provider,
+		String providerUserId,
+		String email
+	) {
+		Optional<SocialAccount> linkedAccount =
+			socialAccountRepository.findByProviderAndProviderUserId(
+				provider,
+				providerUserId);
 
-        account.touchLogin();
-    }
+		if (linkedAccount.isPresent()) {
+			MemberErrorCode errorCode = linkedAccount.get().getMember().getId().equals(targetMemberId)
+				? MemberErrorCode.ACCOUNT_ALREADY_LINKED
+				: MemberErrorCode.SOCIAL_ACCOUNT_IN_USE;
 
-    /** 회원 탈퇴. 익명화 + 소셜 삭제 + 제보 익명화용 MemberWithdrawnEvent 발행. 세션·쿠키 정리는 auth. */
-    @Transactional
-    public void withdraw(Long memberId) {
-        Member member = memberRepository.getMember(memberId);
+			throw new NalssiLogException(errorCode);
+		}
 
-        member.withdraw();
-        socialAccountRepository.deleteAllByMemberId(memberId);
+		if (socialAccountRepository.findByMemberIdAndProvider(targetMemberId, provider).isPresent()) {
+			throw new NalssiLogException(MemberErrorCode.ACCOUNT_ALREADY_LINKED);
+		}
 
-        eventPublisher.publishEvent(MemberWithdrawnEvent.of(memberId));
-    }
+		Member member = memberRepository.getMember(targetMemberId);
 
-    public MemberInfo getMemberInfo(Long memberId) {
+		try {
+			socialAccountRepository.saveAndFlush(
+				SocialAccount.link(member, provider, providerUserId, email));
+		} catch (DataIntegrityViolationException exception) {
+			throw translateSocialLinkConflict(exception);
+		}
 
-        return memberRepository.getMemberInfo(memberId);
-    }
+		return memberRepository.getMemberInfo(targetMemberId);
+	}
 
-    public Optional<MemberInfo> findMemberInfo(Long memberId) {
+	/** 최종 로그인 세션 발급에 사용한 소셜 계정의 로그인 시각만 갱신한다. */
+	@Transactional
+	public void recordLogin(Long memberId, Provider provider) {
+		SocialAccount account = socialAccountRepository
+			.findByMemberIdAndProvider(memberId, provider)
+			.orElseThrow(() -> new NalssiLogException(
+				MemberErrorCode.SOCIAL_ACCOUNT_NOT_FOUND));
 
-        return memberRepository.findMemberInfo(memberId);
-    }
+		account.touchLogin();
+	}
 
-    public Optional<MemberInfo> findMemberInfo(
-            Provider provider,
-            String providerUserId
-    ) {
+	/** 회원 탈퇴. 익명화 + 소셜 삭제 + 제보 익명화용 MemberWithdrawnEvent 발행. 세션·쿠키 정리는 auth. */
+	@Transactional
+	public void withdraw(Long memberId) {
+		Member member = memberRepository.getMember(memberId);
 
-        return socialAccountRepository
-                .findByProviderAndProviderUserId(provider, providerUserId)
-                .map(account -> memberRepository.getMemberInfo(account.getMember().getId()));
-    }
+		member.withdraw();
+		socialAccountRepository.deleteAllByMemberId(memberId);
+
+		eventPublisher.publishEvent(MemberWithdrawnEvent.of(memberId));
+	}
+
+	public MemberInfo getMemberInfo(Long memberId) {
+		return memberRepository.getMemberInfo(memberId);
+	}
+
+	public Optional<MemberInfo> findMemberInfo(Long memberId) {
+		return memberRepository.findMemberInfo(memberId);
+	}
+
+	public List<MemberSummary> findMemberSummaries(Collection<Long> memberIds) {
+		return memberRepository.findSummariesByIds(memberIds);
+	}
+
+	public Optional<MemberInfo> findMemberInfo(
+		Provider provider,
+		String providerUserId
+	) {
+		return socialAccountRepository
+			.findByProviderAndProviderUserId(provider, providerUserId)
+			.map(account -> memberRepository.getMemberInfo(account.getMember().getId()));
+	}
 }

@@ -83,9 +83,15 @@ public class ReportService {
         List<Long> reportIds = page.stream().map(ReportData::id).toList();
         Map<Long, Long> counts = thanksRepository.countByReportIds(reportIds);
         Set<Long> thanked = thanksRepository.thankedReportIds(reportIds, viewer);
+        Map<Long, AuthorInfo> authors = memberClient.findActiveAuthors(
+                page.stream()
+                        .filter(data -> data.authorType() == ActorType.MEMBER)
+                        .map(ReportData::authorMemberId)
+                        .distinct()
+                        .toList());
 
         List<ReportResponse> items = page.stream()
-                .map(data -> ReportResponse.of(data, location, resolveAuthor(data),
+                .map(data -> ReportResponse.of(data, location, authors.get(data.authorMemberId()),
                         counts.getOrDefault(data.id(), 0L),
                         thanked.contains(data.id()),
                         isAuthor(data, ownershipActors),

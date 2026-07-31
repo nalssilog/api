@@ -11,8 +11,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 public interface SocialAccountJpaRepository extends JpaRepository<SocialAccount, Long> {
 
-    Optional<SocialAccount> findByProviderAndProviderUserId(Provider provider, String providerUserId);
-
     Optional<SocialAccount> findByMemberIdAndProvider(Long memberId, Provider provider);
 
     List<SocialAccount> findAllByMemberId(Long memberId);

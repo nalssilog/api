@@ -15,6 +15,7 @@ import com.nalssilog.report.domain.PopularLocationRank;
 import com.nalssilog.report.domain.PopularLocationSnapshot;
 import com.nalssilog.report.repository.PopularLocationRankJpaRepository;
 import com.nalssilog.report.repository.PopularLocationSnapshotJpaRepository;
+import com.nalssilog.report.repository.PopularLocationSnapshotLockRepository;
 import com.nalssilog.report.repository.WeatherReportRepository;
 import java.time.Duration;
 import java.time.Instant;
@@ -38,11 +39,14 @@ class PopularLocationSnapshotServiceTest {
             mock(PopularLocationSnapshotJpaRepository.class);
     private final PopularLocationRankJpaRepository rankRepository =
             mock(PopularLocationRankJpaRepository.class);
+    private final PopularLocationSnapshotLockRepository lockRepository =
+            mock(PopularLocationSnapshotLockRepository.class);
     private final PopularLocationSnapshotService service =
             new PopularLocationSnapshotService(
                     reportRepository,
                     snapshotRepository,
                     rankRepository,
+                    lockRepository,
                     PROPERTIES);
 
     @Test
@@ -141,7 +145,55 @@ class PopularLocationSnapshotServiceTest {
                 .satisfies(ranking -> assertThat(ranking.locationId()).isEqualTo(11L));
         verify(reportRepository, never())
                 .findPopularLocationAggregates(any(), any(), anyInt());
-        verify(snapshotRepository, never()).save(any());
+        verify(snapshotRepository, never()).saveAndFlush(any());
+        verify(lockRepository, never()).acquire();
+    }
+
+    @Test
+    void rechecksLatestSnapshotAfterAcquiringDistributedLock() {
+        Instant now = Instant.parse("2026-07-30T06:05:00Z");
+        PopularLocationSnapshot concurrentSnapshot = snapshot(
+                100L,
+                Instant.parse("2026-07-30T06:00:00Z"));
+        PopularLocationRank storedRank = rank(100L, 11L, 1);
+
+        when(snapshotRepository.findFirstByOrderByCalculatedAtDescIdDesc())
+                .thenReturn(
+                        Optional.empty(),
+                        Optional.of(concurrentSnapshot));
+        when(rankRepository.findAllBySnapshotIdOrderByPositionAsc(100L))
+                .thenReturn(List.of(storedRank));
+
+        var result = service.latestOrRefreshAt(now);
+
+        assertThat(result.snapshotId()).isEqualTo(100L);
+        verify(lockRepository).acquire();
+        verify(reportRepository, never())
+                .findPopularLocationAggregates(any(), any(), anyInt());
+    }
+
+    @Test
+    void reusesSnapshotFromSameCalculationBucket() {
+        Instant requestedAt = Instant.parse("2026-07-30T06:07:00Z");
+        PopularLocationSnapshot existing = snapshot(
+                100L,
+                Instant.parse("2026-07-30T06:00:00Z"));
+        PopularLocationRank storedRank = rank(100L, 11L, 1);
+
+        when(snapshotRepository.findFirstByOrderByCalculatedAtDescIdDesc())
+                .thenReturn(Optional.of(existing));
+        when(rankRepository.findAllBySnapshotIdOrderByPositionAsc(100L))
+                .thenReturn(List.of(storedRank));
+
+        var result = service.captureAt(requestedAt);
+
+        assertThat(result.snapshotId()).isEqualTo(100L);
+        assertThat(result.calculatedAt())
+                .isEqualTo(Instant.parse("2026-07-30T06:00:00Z"));
+        verify(lockRepository).acquire();
+        verify(reportRepository, never())
+                .findPopularLocationAggregates(any(), any(), anyInt());
+        verify(snapshotRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -173,7 +225,7 @@ class PopularLocationSnapshotServiceTest {
     }
 
     private void assignSnapshotId(Long id) {
-        when(snapshotRepository.save(any(PopularLocationSnapshot.class)))
+        when(snapshotRepository.saveAndFlush(any(PopularLocationSnapshot.class)))
                 .thenAnswer(invocation -> {
                     PopularLocationSnapshot snapshot = invocation.getArgument(0);
 
@@ -205,7 +257,6 @@ class PopularLocationSnapshotServiceTest {
     }
 
     private static PopularLocationRank rank(Long snapshotId, Long locationId, int position) {
-
         return PopularLocationRank.create(
                 snapshotId,
                 locationId,
@@ -219,7 +270,6 @@ class PopularLocationSnapshotServiceTest {
     }
 
     private static PopularLocationAggregate aggregate(Long locationId, Instant calculatedAt) {
-
         return new PopularLocationAggregate(
                 locationId,
                 1,

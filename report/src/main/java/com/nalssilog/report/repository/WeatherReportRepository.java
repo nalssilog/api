@@ -1,6 +1,7 @@
 package com.nalssilog.report.repository;
 
 import static com.nalssilog.report.domain.QWeatherReport.weatherReport;
+import static com.nalssilog.report.domain.QWeatherReportImage.weatherReportImage;
 
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.report.application.dto.PopularLocationAggregate;
@@ -21,8 +22,11 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -41,7 +45,6 @@ public class WeatherReportRepository {
     private final EntityManager entityManager;
 
     public ReportData save(WeatherReport report) {
-
         return ReportData.of(weatherReportJpaRepository.save(report));
     }
 
@@ -68,15 +71,24 @@ public class WeatherReportRepository {
     }
 
     public ReportData getReport(Long reportId) {
-
         return ReportData.of(getReportEntity(reportId));
     }
 
     /** 삭제처럼 관리 엔티티가 필요한 쓰기 유스케이스 전용. 반드시 트랜잭션 안에서 사용한다. */
     public WeatherReport getReportEntity(Long reportId) {
+        WeatherReport report = queryFactory
+                .selectFrom(weatherReport)
+                .distinct()
+                .leftJoin(weatherReport.images, weatherReportImage)
+                .fetchJoin()
+                .where(weatherReport.id.eq(reportId))
+                .fetchOne();
 
-        return weatherReportJpaRepository.findById(reportId)
-                .orElseThrow(() -> new NalssiLogException(ReportErrorCode.REPORT_NOT_FOUND));
+        if (report == null) {
+            throw new NalssiLogException(ReportErrorCode.REPORT_NOT_FOUND);
+        }
+
+        return report;
     }
 
     public void delete(WeatherReport report) {
@@ -89,7 +101,7 @@ public class WeatherReportRepository {
                 ? weatherReportJpaRepository.findAllByLocationIdOrderByCreatedAtDescIdDesc(locationId, pageable)
                 : findAfterLocationCursor(locationId, cursorTime, cursorId, limit);
 
-        return reports.stream()
+        return fetchImages(reports).stream()
                 .map(ReportData::of)
                 .toList();
     }
@@ -101,7 +113,7 @@ public class WeatherReportRepository {
                         ActorType.MEMBER, memberId, pageable)
                 : findAfterMemberCursor(memberId, cursorTime, cursorId, limit);
 
-        return reports.stream()
+        return fetchImages(reports).stream()
                 .map(ReportData::of)
                 .toList();
     }
@@ -158,7 +170,6 @@ public class WeatherReportRepository {
 
     private List<WeatherReport> findAfterLocationCursor(
             Long locationId, Instant cursorTime, Long cursorId, int limit) {
-
         return queryFactory
                 .selectFrom(weatherReport)
                 .where(
@@ -172,7 +183,6 @@ public class WeatherReportRepository {
 
     private List<WeatherReport> findAfterMemberCursor(
             Long memberId, Instant cursorTime, Long cursorId, int limit) {
-
         return queryFactory
                 .selectFrom(weatherReport)
                 .where(
@@ -185,8 +195,38 @@ public class WeatherReportRepository {
                 .fetch();
     }
 
-    private BooleanExpression beforeCursor(Instant cursorTime, Long cursorId) {
+    /**
+     * 컬렉션 fetch join에 페이지 제한을 직접 적용하면 메모리 페이징이 발생할 수 있다.
+     * 먼저 루트 엔티티를 제한한 뒤 선택된 ID만 이미지와 fetch join하고 기존 순서를 복원한다.
+     */
+    private List<WeatherReport> fetchImages(List<WeatherReport> reports) {
+        if (reports.isEmpty()) {
+            return List.of();
+        }
 
+        List<Long> reportIds = reports.stream()
+                .map(WeatherReport::getId)
+                .toList();
+        Map<Long, WeatherReport> fetchedById = queryFactory
+                .selectFrom(weatherReport)
+                .distinct()
+                .leftJoin(weatherReport.images, weatherReportImage)
+                .fetchJoin()
+                .where(weatherReport.id.in(reportIds))
+                .fetch()
+                .stream()
+                .collect(Collectors.toMap(
+                        WeatherReport::getId,
+                        Function.identity(),
+                        (first, ignored) -> first,
+                        LinkedHashMap::new));
+
+        return reportIds.stream()
+                .map(fetchedById::get)
+                .toList();
+    }
+
+    private BooleanExpression beforeCursor(Instant cursorTime, Long cursorId) {
         return weatherReport.createdAt.lt(cursorTime)
                 .or(weatherReport.createdAt.eq(cursorTime).and(weatherReport.id.lt(cursorId)));
     }
@@ -212,7 +252,6 @@ public class WeatherReportRepository {
     }
 
     private static long value(Long value) {
-
         return value == null ? 0 : value;
     }
 }

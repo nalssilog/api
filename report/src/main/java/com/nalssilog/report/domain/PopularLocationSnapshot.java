@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -19,7 +20,15 @@ import lombok.NoArgsConstructor;
 @Table(name = "popular_location_snapshot",
         indexes = @Index(
                 name = "idx_popular_location_snapshot_calculated",
-                columnList = "calculated_at"))
+                columnList = "calculated_at"),
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_popular_location_snapshot_calculation",
+                columnNames = {
+                        "calculated_at",
+                        "window_started_at",
+                        "ranking_limit",
+                        "algorithm_version"
+                }))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PopularLocationSnapshot {

@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.common.response.CursorPage;
 import com.nalssilog.report.api.dto.ReportResponse;
+import com.nalssilog.report.application.dto.AuthorInfo;
 import com.nalssilog.report.application.dto.LocationSummary;
 import com.nalssilog.report.application.dto.ReportActor;
 import com.nalssilog.report.application.dto.ReportData;
@@ -146,6 +147,34 @@ class ReportServiceTest {
     }
 
     @Test
+    void listLoadsDistinctMemberAuthorsInOneBulkCall() {
+        ReportData first = memberData(10L, 7L);
+        ReportData second = memberData(11L, 8L);
+        AuthorInfo firstAuthor = new AuthorInfo(7L, "first", null, null);
+        AuthorInfo secondAuthor = new AuthorInfo(8L, "second", null, null);
+
+        when(reportRepository.findPage(eq(1L), isNull(), isNull(), eq(21)))
+                .thenReturn(List.of(first, second));
+        when(locationClient.getLocation(1L)).thenReturn(location());
+        when(thanksRepository.countByReportIds(List.of(10L, 11L))).thenReturn(Map.of());
+        when(thanksRepository.thankedReportIds(List.of(10L, 11L), null)).thenReturn(Set.of());
+        when(memberClient.findActiveAuthors(List.of(7L, 8L)))
+                .thenReturn(Map.of(7L, firstAuthor, 8L, secondAuthor));
+
+        CursorPage<ReportResponse> response = service.list(
+                1L,
+                null,
+                null,
+                List.of());
+
+        assertThat(response.items())
+                .extracting(item -> item.author().id())
+                .containsExactly("7", "8");
+        verify(memberClient).findActiveAuthors(List.of(7L, 8L));
+        verify(memberClient, never()).findActiveAuthor(any());
+    }
+
+    @Test
     void statsAggregatesReportsFromTheLastThreeHours() {
         WeatherStatsData stats = new WeatherStatsData(0L, Map.of(), Map.of(), Map.of());
         when(locationClient.getLocation(1L)).thenReturn(location());
@@ -178,6 +207,22 @@ class ReportServiceTest {
                 ActorType.ANONYMOUS,
                 null,
                 anonymousKey,
+                Temperature.FRESH,
+                Precipitation.NONE,
+                Sunlight.MODERATE,
+                "맑아요",
+                List.of(),
+                Instant.parse("2026-07-24T00:00:00Z")
+        );
+    }
+
+    private ReportData memberData(Long reportId, Long memberId) {
+        return new ReportData(
+                reportId,
+                1L,
+                ActorType.MEMBER,
+                memberId,
+                null,
                 Temperature.FRESH,
                 Precipitation.NONE,
                 Sunlight.MODERATE,

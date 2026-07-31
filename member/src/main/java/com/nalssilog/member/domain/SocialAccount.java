@@ -22,7 +22,12 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "social_account", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_social_account_provider_user", columnNames = {"provider", "provider_user_id"})
+        @UniqueConstraint(
+                name = "uk_social_account_provider_user",
+                columnNames = {"provider", "provider_user_id"}),
+        @UniqueConstraint(
+                name = "uk_social_account_member_provider",
+                columnNames = {"member_id", "provider"})
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -66,7 +71,6 @@ public class SocialAccount extends BaseTimeEntity {
             String providerUserId,
             String providerEmail
     ) {
-
         return create(member, provider, providerUserId, providerEmail);
     }
 

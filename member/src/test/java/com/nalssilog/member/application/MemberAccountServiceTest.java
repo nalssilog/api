@@ -1,21 +1,28 @@
 package com.nalssilog.member.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.member.application.dto.SocialLoginResult;
 import com.nalssilog.member.domain.Member;
+import com.nalssilog.member.domain.MemberErrorCode;
 import com.nalssilog.member.domain.MemberStatus;
 import com.nalssilog.member.domain.Provider;
 import com.nalssilog.member.domain.SocialAccount;
 import com.nalssilog.member.repository.MemberRepository;
 import com.nalssilog.member.repository.SocialAccountRepository;
+import java.sql.SQLException;
 import java.util.Optional;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @SuppressWarnings("java:S5960")
 class MemberAccountServiceTest {
@@ -61,5 +68,65 @@ class MemberAccountServiceTest {
         service.recordLogin(7L, Provider.KAKAO);
 
         verify(account).touchLogin();
+    }
+
+    @Test
+    void rejectsLinkWhenMemberAlreadyHasProvider() {
+        when(socialAccountRepository.findByProviderAndProviderUserId(
+                Provider.KAKAO,
+                "new-kakao-user")).thenReturn(Optional.empty());
+        when(socialAccountRepository.findByMemberIdAndProvider(
+                7L,
+                Provider.KAKAO)).thenReturn(Optional.of(mock(SocialAccount.class)));
+
+        NalssiLogException exception = catchThrowableOfType(
+                NalssiLogException.class,
+                () -> service.linkSocial(
+                        7L,
+                        Provider.KAKAO,
+                        "new-kakao-user",
+                        "user@example.com"));
+
+        assertThat(exception.getErrorCode())
+                .isEqualTo(MemberErrorCode.ACCOUNT_ALREADY_LINKED);
+        verify(socialAccountRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void translatesConcurrentProviderUserCollisionToDomainConflict() {
+        Member member = mock(Member.class);
+
+        when(socialAccountRepository.findByProviderAndProviderUserId(
+                Provider.KAKAO,
+                "kakao-user")).thenReturn(Optional.empty());
+        when(socialAccountRepository.findByMemberIdAndProvider(
+                7L,
+                Provider.KAKAO)).thenReturn(Optional.empty());
+        when(memberRepository.getMember(7L)).thenReturn(member);
+        when(socialAccountRepository.saveAndFlush(any(SocialAccount.class)))
+                .thenThrow(constraintCollision(
+                        "uk_social_account_provider_user"));
+
+        NalssiLogException exception = catchThrowableOfType(
+                NalssiLogException.class,
+                () -> service.linkSocial(
+                        7L,
+                        Provider.KAKAO,
+                        "kakao-user",
+                        "user@example.com"));
+
+        assertThat(exception.getErrorCode())
+                .isEqualTo(MemberErrorCode.SOCIAL_ACCOUNT_IN_USE);
+    }
+
+    private static DataIntegrityViolationException constraintCollision(
+            String constraintName
+    ) {
+        return new DataIntegrityViolationException(
+                "duplicate social account",
+                new ConstraintViolationException(
+                        "duplicate social account",
+                        new SQLException(),
+                        constraintName));
     }
 }
