@@ -73,6 +73,7 @@ public class LocationService {
         return locationRepository.findOrCreate(region);
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public PopularLocationSnapshotInfo getPopular() {
         PopularLocationSnapshotData snapshot = popularLocationSource.latestSnapshot();
         List<Long> locationIds = snapshot.rankings().stream()

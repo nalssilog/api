@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
 
 @SuppressWarnings("java:S5960")
 class PopularLocationSnapshotServiceTest {
@@ -48,6 +50,31 @@ class PopularLocationSnapshotServiceTest {
                     rankRepository,
                     lockRepository,
                     PROPERTIES);
+
+    @Test
+    void snapshotWritesAlwaysUseIndependentTransactions() throws NoSuchMethodException {
+        AnnotationTransactionAttributeSource attributeSource =
+                new AnnotationTransactionAttributeSource();
+        var refreshAttribute = attributeSource.getTransactionAttribute(
+                PopularLocationSnapshotService.class.getMethod(
+                        "latestOrRefreshAt",
+                        Instant.class),
+                PopularLocationSnapshotService.class);
+        var captureAttribute = attributeSource.getTransactionAttribute(
+                PopularLocationSnapshotService.class.getMethod(
+                        "captureAt",
+                        Instant.class),
+                PopularLocationSnapshotService.class);
+
+        assertThat(refreshAttribute).isNotNull();
+        assertThat(refreshAttribute.getPropagationBehavior())
+                .isEqualTo(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        assertThat(refreshAttribute.isReadOnly()).isFalse();
+        assertThat(captureAttribute).isNotNull();
+        assertThat(captureAttribute.getPropagationBehavior())
+                .isEqualTo(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        assertThat(captureAttribute.isReadOnly()).isFalse();
+    }
 
     @Test
     void createsFirstSnapshotWithNewMovementsAndDetailedMetrics() {
