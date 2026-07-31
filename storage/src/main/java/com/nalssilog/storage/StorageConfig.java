@@ -48,7 +48,6 @@ public class StorageConfig {
     }
 
     private StaticCredentialsProvider credentials(StorageProperties.R2 r2) {
-
         return StaticCredentialsProvider.create(AwsBasicCredentials.create(r2.accessKey(), r2.secretKey()));
     }
 }

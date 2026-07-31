@@ -27,65 +27,65 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class LocationFavoriteService {
 
-	private static final int PAGE_SIZE = 5;
-	private static final String FAVORITE_CONSTRAINT = "uk_location_favorite_member_location";
+    private static final int PAGE_SIZE = 5;
+    private static final String FAVORITE_CONSTRAINT = "uk_location_favorite_member_location";
 
-	private final LocationFavoriteRepository locationFavoriteRepository;
-	private final LocationRepository locationRepository;
+    private final LocationFavoriteRepository locationFavoriteRepository;
+    private final LocationRepository locationRepository;
 
-	private static boolean hasConstraint(
-		Throwable throwable
-	) {
-		for (Throwable cause = throwable; cause != null; cause = cause.getCause()) {
-			if (cause instanceof ConstraintViolationException constraintViolation) {
-				String constraintName = constraintViolation.getConstraintName();
+    private static boolean hasConstraint(
+        Throwable throwable
+    ) {
+        for (Throwable cause = throwable; cause != null; cause = cause.getCause()) {
+            if (cause instanceof ConstraintViolationException constraintViolation) {
+                String constraintName = constraintViolation.getConstraintName();
 
-				return FAVORITE_CONSTRAINT.equalsIgnoreCase(constraintName);
-			}
-		}
+                return FAVORITE_CONSTRAINT.equalsIgnoreCase(constraintName);
+            }
+        }
 
-		return false;
-	}
+        return false;
+    }
 
-	@Transactional
-	public void addFavorite(Long memberId, Long locationId) {
-		locationRepository.getById(locationId);
+    @Transactional
+    public void addFavorite(Long memberId, Long locationId) {
+        locationRepository.getById(locationId);
 
-		if (locationFavoriteRepository.existsByMemberIdAndLocationId(memberId, locationId)) {
-			return;
-		}
+        if (locationFavoriteRepository.existsByMemberIdAndLocationId(memberId, locationId)) {
+            return;
+        }
 
-		try {
-			locationFavoriteRepository.saveAndFlush(
-				LocationFavorite.of(memberId, locationId));
-		} catch (DataIntegrityViolationException exception) {
-			if (hasConstraint(exception)) {
-				throw new NalssiLogException(
-					LocationErrorCode.FAVORITE_ALREADY_EXISTS);
-			}
+        try {
+            locationFavoriteRepository.saveAndFlush(
+                LocationFavorite.of(memberId, locationId));
+        } catch (DataIntegrityViolationException exception) {
+            if (hasConstraint(exception)) {
+                throw new NalssiLogException(
+                    LocationErrorCode.FAVORITE_ALREADY_EXISTS);
+            }
 
-			throw exception;
-		}
-	}
+            throw exception;
+        }
+    }
 
-	@Transactional
-	public void removeFavorite(Long memberId, Long locationId) {
-		locationFavoriteRepository.deleteByMemberIdAndLocationId(memberId, locationId);
-	}
+    @Transactional
+    public void removeFavorite(Long memberId, Long locationId) {
+        locationFavoriteRepository.deleteByMemberIdAndLocationId(memberId, locationId);
+    }
 
-	public PageResponse<LocationInfo> listFavorites(Long memberId, int page) {
-		Page<LocationFavorite> favorites =
-			locationFavoriteRepository.findAllByMemberIdOrderByCreatedAtDescIdDesc(
-				memberId,
-				PageRequest.of(page, PAGE_SIZE));
-		List<Long> favoriteIds = favorites.getContent().stream()
-			.map(LocationFavorite::getLocationId)
-			.toList();
+    public PageResponse<LocationInfo> listFavorites(Long memberId, int page) {
+        Page<LocationFavorite> favorites =
+            locationFavoriteRepository.findAllByMemberIdOrderByCreatedAtDescIdDesc(
+                memberId,
+                PageRequest.of(page, PAGE_SIZE));
+        List<Long> favoriteIds = favorites.getContent().stream()
+            .map(LocationFavorite::getLocationId)
+            .toList();
 
-		return PageResponse.of(
-			locationRepository.findByIds(favoriteIds),
-			page,
-			PAGE_SIZE,
-			favorites.getTotalElements());
-	}
+        return PageResponse.of(
+            locationRepository.findByIds(favoriteIds),
+            page,
+            PAGE_SIZE,
+            favorites.getTotalElements());
+    }
 }

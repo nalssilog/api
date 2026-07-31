@@ -29,7 +29,6 @@ public record StorageProperties(
     ) {
 
         public String effectivePresignEndpoint() {
-
             return presignEndpoint == null || presignEndpoint.isBlank()
                     ? endpoint
                     : presignEndpoint;

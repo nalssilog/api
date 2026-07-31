@@ -154,7 +154,7 @@ class MobileOAuthServiceTest {
         String verifier = "v".repeat(43);
         DeviceInfo device = new DeviceInfo(
                 "ANDROID · Galaxy · 0.1.0",
-                "203.0.113.10");
+                "client-a.test");
         MemberInfo member = member();
         TokenPair tokens = new TokenPair(
                 "access-token",
@@ -197,7 +197,7 @@ class MobileOAuthServiceTest {
         String verifier = "v".repeat(43);
         DeviceInfo device = new DeviceInfo(
                 "IOS · iPhone · 0.1.0",
-                "203.0.113.10");
+                "client-a.test");
         MobileOAuthTransaction transaction = new MobileOAuthTransaction(
                 MobileOAuthPurpose.LOGIN_LINK_REAUTH,
                 Provider.NAVER,
@@ -309,7 +309,6 @@ class MobileOAuthServiceTest {
     }
 
     private MemberInfo member() {
-
         return new MemberInfo(
                 7L,
                 "사용자",
@@ -323,7 +322,6 @@ class MobileOAuthServiceTest {
     }
 
     private MemberInfo linkedMember() {
-
         return new MemberInfo(
                 7L,
                 "사용자",
@@ -337,7 +335,6 @@ class MobileOAuthServiceTest {
     }
 
     private AuthProperties properties() {
-
         return new AuthProperties(
                 new AuthProperties.Jwt(
                         "test-secret-must-be-at-least-thirty-two-bytes",
@@ -352,7 +349,7 @@ class MobileOAuthServiceTest {
                         Duration.ofMinutes(10),
                         Duration.ofSeconds(90),
                         "test-hmac-secret",
-                        List.of("127.0.0.0/8")),
+                        List.of()),
                 new AuthProperties.Guest(
                         Duration.ofDays(365),
                         5,

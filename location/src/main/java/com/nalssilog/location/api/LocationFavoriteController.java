@@ -31,7 +31,6 @@ public class LocationFavoriteController {
             @AuthenticationPrincipal Long memberId,
             @RequestParam(defaultValue = "0") @Min(0) int page
     ) {
-
         return locationFavoriteService.listFavorites(memberId, page).map(LocationResponse::from);
     }
 

@@ -70,7 +70,6 @@ public record MobileTokenResponse(
 
     private static User user(MemberInfo member) {
         if (member == null) {
-
             return null;
         }
 

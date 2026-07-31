@@ -18,9 +18,11 @@ public record KakaoMapProperties(
 
     public KakaoMapProperties {
         baseUrl = baseUrl == null || baseUrl.isBlank() ? DEFAULT_BASE_URL : baseUrl.strip();
+
         if (reverseGeocodePath == null || reverseGeocodePath.isBlank()) {
             throw new IllegalArgumentException("Kakao reverse-geocode-path must be configured");
         }
+
         reverseGeocodePath = reverseGeocodePath.strip();
         restApiKey = restApiKey == null ? "" : restApiKey.strip();
         connectTimeout = connectTimeout == null ? DEFAULT_CONNECT_TIMEOUT : connectTimeout;

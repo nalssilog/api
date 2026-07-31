@@ -53,12 +53,10 @@ public class MobileGuestCredential extends BaseTimeEntity {
     }
 
     public boolean isExpired(Instant now) {
-
         return !expiresAt.isAfter(now);
     }
 
     public boolean isRevoked() {
-
         return revokedAt != null;
     }
 

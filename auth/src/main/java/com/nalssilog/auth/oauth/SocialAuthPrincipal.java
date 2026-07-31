@@ -22,24 +22,20 @@ public record SocialAuthPrincipal(
 
     @Override
     public Map<String, Object> getAttributes() {
-
         return attributes;
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-
         return List.of(new SimpleGrantedAuthority(roleOf(result.status())));
     }
 
     @Override
     public String getName() {
-
         return result.memberId() == null ? "anonymous" : String.valueOf(result.memberId());
     }
 
     public static String roleOf(MemberStatus status) {
-
         return status == MemberStatus.ACTIVE ? "ROLE_MEMBER" : "ROLE_PENDING";
     }
 }

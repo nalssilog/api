@@ -17,7 +17,6 @@ public record OAuthUserInfo(
 
     @SuppressWarnings("unchecked")
     public static OAuthUserInfo of(String registrationId, Map<String, Object> attributes) {
-
         return of(registrationId, attributes, null);
     }
 
@@ -68,12 +67,10 @@ public record OAuthUserInfo(
     }
 
     private static String firstNonBlank(String first, String second) {
-
         return first == null || first.isBlank() ? second : first;
     }
 
     private static String text(Object value) {
-
         return value == null ? null : String.valueOf(value);
     }
 }

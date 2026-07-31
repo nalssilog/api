@@ -21,14 +21,12 @@ public class ReportActorResolver {
 
     public ReportActor resolveForWrite(Long memberId, HttpServletRequest request, HttpServletResponse response) {
         if (memberId != null) {
-
             return ReportActor.member(memberId);
         }
 
         var mobileGuest = VerifiedRequestCredentials.guestAnonymousKey(request);
 
         if (mobileGuest.isPresent()) {
-
             return ReportActor.anonymous(mobileGuest.get());
         }
 
@@ -37,14 +35,12 @@ public class ReportActorResolver {
 
     public ReportActor resolveForRead(Long memberId, HttpServletRequest request) {
         if (memberId != null) {
-
             return ReportActor.member(memberId);
         }
 
         var mobileGuest = VerifiedRequestCredentials.guestAnonymousKey(request);
 
         if (mobileGuest.isPresent()) {
-
             return ReportActor.anonymous(mobileGuest.get());
         }
 
@@ -63,6 +59,7 @@ public class ReportActorResolver {
         if (memberId != null) {
             actors.add(ReportActor.member(memberId));
         }
+
         VerifiedRequestCredentials.guestAnonymousKey(request)
                 .map(ReportActor::anonymous)
                 .ifPresent(actors::add);

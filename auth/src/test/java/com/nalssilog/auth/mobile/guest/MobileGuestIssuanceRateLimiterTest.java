@@ -35,7 +35,7 @@ class MobileGuestIssuanceRateLimiterTest {
                 any(),
                 any())).thenReturn(0L);
 
-        limiter.check("203.0.113.10");
+        limiter.check("client-a.test");
 
         ArgumentCaptor<List<String>> keys = ArgumentCaptor.forClass(List.class);
 
@@ -48,7 +48,7 @@ class MobileGuestIssuanceRateLimiterTest {
                 org.mockito.ArgumentMatchers.eq("3000"));
         assertThat(keys.getValue())
                 .hasSize(2)
-                .allMatch(key -> !key.contains("203.0.113.10"));
+                .allMatch(key -> !key.contains("client-a.test"));
         assertThat(keys.getValue().getFirst()).startsWith("auth:guest:issue:ip:");
         assertThat(keys.getValue().getLast()).isEqualTo("auth:guest:issue:global");
     }
@@ -65,7 +65,7 @@ class MobileGuestIssuanceRateLimiterTest {
 
         NalssiLogException exception = catchThrowableOfType(
                 NalssiLogException.class,
-                () -> limiter.check("203.0.113.10"));
+                () -> limiter.check("client-a.test"));
 
         assertThat(exception.getErrorCode())
                 .isEqualTo(AuthErrorCode.GUEST_ISSUANCE_RATE_LIMITED);
@@ -83,14 +83,13 @@ class MobileGuestIssuanceRateLimiterTest {
 
         NalssiLogException exception = catchThrowableOfType(
                 NalssiLogException.class,
-                () -> limiter.check("198.51.100.8"));
+                () -> limiter.check("client-b.test"));
 
         assertThat(exception.getErrorCode())
                 .isEqualTo(AuthErrorCode.GUEST_ISSUANCE_RATE_LIMITED);
     }
 
     private AuthProperties properties() {
-
         return new AuthProperties(
                 new AuthProperties.Jwt(
                         "test-secret-must-be-at-least-thirty-two-bytes",
@@ -105,7 +104,7 @@ class MobileGuestIssuanceRateLimiterTest {
                         Duration.ofMinutes(10),
                         Duration.ofSeconds(90),
                         "test-hmac-secret",
-                        List.of("127.0.0.0/8")),
+                        List.of()),
                 new AuthProperties.Guest(
                         Duration.ofDays(365),
                         300,

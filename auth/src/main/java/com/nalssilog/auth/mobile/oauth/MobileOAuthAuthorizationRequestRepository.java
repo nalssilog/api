@@ -16,7 +16,6 @@ public class MobileOAuthAuthorizationRequestRepository
 
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
-
         return delegate.loadAuthorizationRequest(request);
     }
 

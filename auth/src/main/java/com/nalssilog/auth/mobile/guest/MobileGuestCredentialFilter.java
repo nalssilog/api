@@ -38,6 +38,7 @@ public class MobileGuestCredentialFilter extends OncePerRequestFilter {
 
             return;
         }
+
         if (values.size() != 1 || values.getFirst() == null
                 || values.getFirst().isBlank() || values.getFirst().contains(",")) {
             reject(request, response, AuthErrorCode.GUEST_CREDENTIAL_INVALID);

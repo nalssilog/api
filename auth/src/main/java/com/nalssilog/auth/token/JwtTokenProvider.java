@@ -29,17 +29,21 @@ public class JwtTokenProvider {
     public JwtTokenProvider(AuthProperties properties) {
         String secret = properties.jwt().secret();
 
-        if (secret == null || secret.isBlank()) {
-            log.warn("JWT secret 이 설정되지 않아 임시 키를 생성합니다. 재시작하면 모든 액세스 토큰이 무효화됩니다.");
-            this.key = Jwts.SIG.HS256.key().build();
-        } else {
-            this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        }
+        this.key = resolveKey(secret);
         this.accessTokenTtl = properties.jwt().accessTokenTtl();
     }
 
-    public String createAccessToken(Long memberId, MemberStatus status, Provider provider) {
+    private static SecretKey resolveKey(String secret) {
+        if (secret == null || secret.isBlank()) {
+            log.warn("JWT secret 이 설정되지 않아 임시 키를 생성합니다. 재시작하면 모든 액세스 토큰이 무효화됩니다.");
 
+            return Jwts.SIG.HS256.key().build();
+        }
+
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public String createAccessToken(Long memberId, MemberStatus status, Provider provider) {
         return createAccessToken(memberId, status, provider, null);
     }
 
@@ -89,7 +93,6 @@ public class JwtTokenProvider {
 
             if (status == null || provider == null
                     || (tokenType != null && !"access".equals(tokenType))) {
-
                 return TokenValidation.invalid();
             }
 
@@ -100,10 +103,8 @@ public class JwtTokenProvider {
                     claims.get("sid", String.class)
             ));
         } catch (ExpiredJwtException _) {
-
             return TokenValidation.expired();
         } catch (JwtException | IllegalArgumentException _) {
-
             return TokenValidation.invalid();
         }
     }
@@ -117,17 +118,14 @@ public class JwtTokenProvider {
     public record TokenValidation(TokenValidationStatus status, AccessTokenPayload payload) {
 
         private static TokenValidation valid(AccessTokenPayload payload) {
-
             return new TokenValidation(TokenValidationStatus.VALID, payload);
         }
 
         private static TokenValidation expired() {
-
             return new TokenValidation(TokenValidationStatus.EXPIRED, null);
         }
 
         private static TokenValidation invalid() {
-
             return new TokenValidation(TokenValidationStatus.INVALID, null);
         }
     }

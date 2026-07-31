@@ -30,10 +30,13 @@ public record AuthProperties(
 
         if (mobile == null) {
             mobile = Mobile.defaults(ipHmacFallback);
-        } else if (mobile.ipHmacSecret() == null
+        }
+
+        if (mobile.ipHmacSecret() == null
                 || mobile.ipHmacSecret().isBlank()) {
             mobile = mobile.withIpHmacSecret(ipHmacFallback);
         }
+
         if (guest == null) {
             guest = Guest.defaults();
         }
@@ -79,19 +82,21 @@ public record AuthProperties(
             redirectUris = redirectUris == null || redirectUris.isEmpty()
                     ? List.of()
                     : List.copyOf(redirectUris);
+
             if (transactionTtl == null || transactionTtl.isNegative() || transactionTtl.isZero()) {
                 transactionTtl = Duration.ofMinutes(10);
             }
+
             if (codeTtl == null || codeTtl.isNegative() || codeTtl.isZero()) {
                 codeTtl = Duration.ofSeconds(90);
             }
-            trustedProxies = trustedProxies == null || trustedProxies.isEmpty()
-                    ? List.of("127.0.0.0/8", "::1/128", "172.16.0.0/12")
+
+            trustedProxies = trustedProxies == null
+                    ? List.of()
                     : List.copyOf(trustedProxies);
         }
 
         private Mobile withIpHmacSecret(String secret) {
-
             return new Mobile(
                     redirectUris,
                     transactionTtl,
@@ -101,7 +106,6 @@ public record AuthProperties(
         }
 
         private static Mobile defaults(String ipHmacSecret) {
-
             return new Mobile(null, null, null, ipHmacSecret, null);
         }
     }
@@ -121,26 +125,33 @@ public record AuthProperties(
             if (ttl == null || ttl.isNegative() || ttl.isZero()) {
                 ttl = Duration.ofDays(365);
             }
+
             if (maxIssuances <= 0) {
                 maxIssuances = 300;
             }
+
             if (rateLimitWindow == null || rateLimitWindow.isNegative() || rateLimitWindow.isZero()) {
                 rateLimitWindow = Duration.ofMinutes(10);
             }
+
             if (globalMaxIssuances <= 0) {
                 globalMaxIssuances = 3_000;
             }
+
             if (globalRateLimitWindow == null
                     || globalRateLimitWindow.isNegative()
                     || globalRateLimitWindow.isZero()) {
                 globalRateLimitWindow = Duration.ofMinutes(1);
             }
+
             if (expiredRetention == null || expiredRetention.isNegative()) {
                 expiredRetention = Duration.ofDays(7);
             }
+
             if (cleanupInterval == null || cleanupInterval.isNegative() || cleanupInterval.isZero()) {
                 cleanupInterval = Duration.ofHours(6);
             }
+
             if (cleanupInitialDelay == null
                     || cleanupInitialDelay.isNegative()
                     || cleanupInitialDelay.isZero()) {
@@ -157,7 +168,6 @@ public record AuthProperties(
         }
 
         private static Guest defaults() {
-
             return new Guest(null, 0, null, 0, null, null, null, null);
         }
     }

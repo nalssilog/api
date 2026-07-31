@@ -64,7 +64,6 @@ public class GlobalExceptionHandler {
             MethodArgumentTypeMismatchException.class
     })
     public ErrorResponse handleRequestParameterValidation(Exception exception) {
-
         return new ErrorResponse(
                 "VALIDATION_ERROR",
                 "요청 파라미터가 올바르지 않습니다.");
@@ -73,14 +72,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ErrorResponse handleNotReadable(HttpMessageNotReadableException exception) {
-
         return new ErrorResponse("INVALID_REQUEST", "요청 본문을 해석할 수 없습니다.");
     }
 
     @ResponseStatus(HttpStatus.NOT_FOUND)
     @ExceptionHandler(NoResourceFoundException.class)
     public ErrorResponse handleNoResourceFoundException(NoResourceFoundException exception) {
-
         return new ErrorResponse("NOT_FOUND", "요청한 리소스를 찾을 수 없습니다.");
     }
 

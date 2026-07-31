@@ -59,6 +59,7 @@ public record WeatherStatsResponse(
 
         for (E value : values) {
             long count = counts.getOrDefault(value, 0L);
+
             distribution.put(value.name(), count);
 
             if (count > max) {

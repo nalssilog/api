@@ -55,7 +55,6 @@ public class OAuth2LoginFailureHandler implements AuthenticationFailureHandler {
 
     private String resolveCode(AuthenticationException exception) {
         if (exception instanceof OAuth2AuthenticationException oauthException) {
-
             return switch (oauthException.getError().getErrorCode()) {
                 case "access_denied" -> "OAUTH_CANCELLED";
                 case EMAIL_REQUIRED_ERROR -> "OAUTH_EMAIL_REQUIRED";

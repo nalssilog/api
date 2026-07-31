@@ -19,7 +19,6 @@ public class TrustedProxyClientIpResolver {
     }
 
     public String resolve(HttpServletRequest request) {
-
         return trustedProxyChain.resolve(request);
     }
 }

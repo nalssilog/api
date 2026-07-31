@@ -42,6 +42,7 @@ public class WeatherReportImage extends BaseTimeEntity {
 
     public static WeatherReportImage create(WeatherReport report, String storageKey, int displayOrder) {
         WeatherReportImage image = new WeatherReportImage();
+
         image.report = report;
         image.storageKey = storageKey;
         image.displayOrder = displayOrder;

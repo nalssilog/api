@@ -30,14 +30,17 @@ final class LegalDongCsvReader {
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
             String header = removeBom(reader.readLine());
+
             if (!EXPECTED_HEADER.equals(header)) {
                 throw new IllegalStateException("Unexpected legal-dong CSV header: " + header);
             }
 
             String line;
             int lineNumber = 1;
+
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
+
                 if (!line.isBlank()) {
                     sourceRows.add(parse(line, lineNumber));
                 }
@@ -47,6 +50,7 @@ final class LegalDongCsvReader {
         }
 
         Set<String> parentCodesWithRi = new HashSet<>();
+
         for (SourceRow row : sourceRows) {
             if (!row.ri().isBlank()) {
                 parentCodesWithRi.add(row.adminCode().substring(0, 8) + "00");
@@ -62,6 +66,7 @@ final class LegalDongCsvReader {
 
     private static SourceRow parse(String line, int lineNumber) {
         String[] columns = line.split(",", -1);
+
         if (columns.length != 7) {
             throw new IllegalStateException(
                     "Invalid legal-dong CSV column count at line " + lineNumber);
@@ -69,6 +74,7 @@ final class LegalDongCsvReader {
 
         String adminCode = columns[0].strip();
         String sido = columns[1].strip();
+
         if (!adminCode.matches("\\d{10}") || sido.isBlank()) {
             throw new IllegalStateException("Invalid legal-dong CSV row at line " + lineNumber);
         }
@@ -105,6 +111,7 @@ final class LegalDongCsvReader {
         if (value != null && value.startsWith("\uFEFF")) {
             return value.substring(1);
         }
+
         return value;
     }
 
@@ -121,6 +128,7 @@ final class LegalDongCsvReader {
 
         LegalDongRow toLegalDongRow() {
             String dong = ri.isBlank() ? eupMyeonDong : eupMyeonDong + " " + ri;
+
             return new LegalDongRow(adminCode, sido, sigungu, dong);
         }
     }

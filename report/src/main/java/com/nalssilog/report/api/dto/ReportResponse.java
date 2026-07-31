@@ -87,6 +87,7 @@ public record ReportResponse(
         if (data.authorAnonymousKey() != null) {
             return data.authorAnonymousKey();
         }
+
         if (data.authorMemberId() != null) {
             return "member:" + data.authorMemberId();
         }

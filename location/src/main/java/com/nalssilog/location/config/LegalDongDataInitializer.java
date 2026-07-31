@@ -54,6 +54,7 @@ public class LegalDongDataInitializer implements ApplicationRunner {
 
         List<LegalDongRow> rows = LegalDongCsvReader.read(
                 new ClassPathResource(DATASET_RESOURCE));
+
         jdbcTemplate.batchUpdate(UPSERT_SQL, rows, BATCH_SIZE, this::setParameters);
         jdbcTemplate.update("""
                 insert into location_dataset_import (dataset_version, source_name, imported_at)

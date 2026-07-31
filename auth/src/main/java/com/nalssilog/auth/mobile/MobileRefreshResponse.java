@@ -15,7 +15,6 @@ public record MobileRefreshResponse(
             TokenPair tokens,
             AuthProperties properties
     ) {
-
         return new MobileRefreshResponse(
                 "Bearer",
                 tokens.accessToken(),

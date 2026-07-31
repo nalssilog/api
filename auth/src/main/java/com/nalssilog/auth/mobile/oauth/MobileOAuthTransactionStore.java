@@ -31,7 +31,6 @@ public class MobileOAuthTransactionStore {
 
     public Optional<MobileOAuthTransaction> find(String transactionId) {
         if (!validTransactionId(transactionId)) {
-
             return Optional.empty();
         }
 
@@ -40,7 +39,6 @@ public class MobileOAuthTransactionStore {
 
     public Optional<MobileOAuthTransaction> take(String transactionId) {
         if (!validTransactionId(transactionId)) {
-
             return Optional.empty();
         }
 
@@ -48,19 +46,16 @@ public class MobileOAuthTransactionStore {
     }
 
     private String key(String transactionId) {
-
         return KEY_PREFIX + SecretFingerprint.sha256(transactionId);
     }
 
     private boolean validTransactionId(String transactionId) {
-
         return transactionId != null
                 && TRANSACTION_ID_PATTERN.matcher(transactionId).matches();
     }
 
     private String serialize(MobileOAuthTransaction transaction) {
         try {
-
             return objectMapper.writeValueAsString(transaction);
         } catch (JacksonException exception) {
             throw new IllegalStateException("mobile OAuth transaction serialization failed", exception);
@@ -69,11 +64,10 @@ public class MobileOAuthTransactionStore {
 
     private Optional<MobileOAuthTransaction> deserialize(String value) {
         if (value == null) {
-
             return Optional.empty();
         }
-        try {
 
+        try {
             return Optional.of(objectMapper.readValue(value, MobileOAuthTransaction.class));
         } catch (JacksonException exception) {
             throw new IllegalStateException("mobile OAuth transaction deserialization failed", exception);

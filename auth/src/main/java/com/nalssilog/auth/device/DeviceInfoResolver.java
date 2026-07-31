@@ -32,7 +32,6 @@ public class DeviceInfoResolver {
         String ip = trustedProxyChain.resolve(request);
 
         if (!StringUtils.hasText(ip)) {
-
             return "";
         }
 
@@ -41,7 +40,6 @@ public class DeviceInfoResolver {
 
     private String deviceName(String userAgent) {
         if (!StringUtils.hasText(userAgent)) {
-
             return "알 수 없는 기기";
         }
 
@@ -54,27 +52,26 @@ public class DeviceInfoResolver {
 
     private String browser(String ua) {
         if (ua.contains("Edg")) {
-
             return "Edge";
         }
-        if (ua.contains("SamsungBrowser")) {
 
+        if (ua.contains("SamsungBrowser")) {
             return "Samsung Internet";
         }
-        if (ua.contains("OPR") || ua.contains("Opera")) {
 
+        if (ua.contains("OPR") || ua.contains("Opera")) {
             return "Opera";
         }
-        if (ua.contains("Firefox")) {
 
+        if (ua.contains("Firefox")) {
             return "Firefox";
         }
-        if (ua.contains("Chrome")) {
 
+        if (ua.contains("Chrome")) {
             return "Chrome";
         }
-        if (ua.contains("Safari")) {
 
+        if (ua.contains("Safari")) {
             return "Safari";
         }
 
@@ -83,27 +80,26 @@ public class DeviceInfoResolver {
 
     private String os(String ua) {
         if (ua.contains("iPhone")) {
-
             return "iPhone";
         }
-        if (ua.contains("iPad")) {
 
+        if (ua.contains("iPad")) {
             return "iPad";
         }
-        if (ua.contains("Android")) {
 
+        if (ua.contains("Android")) {
             return "Android";
         }
-        if (ua.contains("Windows")) {
 
+        if (ua.contains("Windows")) {
             return "Windows";
         }
-        if (ua.contains("Mac OS X") || ua.contains("Macintosh")) {
 
+        if (ua.contains("Mac OS X") || ua.contains("Macintosh")) {
             return "Mac";
         }
-        if (ua.contains("Linux")) {
 
+        if (ua.contains("Linux")) {
             return "Linux";
         }
 

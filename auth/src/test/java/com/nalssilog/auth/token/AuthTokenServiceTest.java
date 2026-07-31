@@ -58,7 +58,7 @@ class AuthTokenServiceTest {
                 1L,
                 Provider.KAKAO,
                 "Chrome · Windows",
-                "127.0.0.1",
+                "loopback.test",
                 Instant.parse("2026-07-01T00:00:00Z"),
                 Instant.parse("2026-07-01T00:00:00Z"));
         member = new MemberInfo(
@@ -99,7 +99,7 @@ class AuthTokenServiceTest {
                             Duration.ofDays(14).toMillis());
                 });
 
-        TokenPair tokens = service.refresh(CURRENT_TOKEN, new DeviceInfo("ignored", "203.0.113.1"));
+        TokenPair tokens = service.refresh(CURRENT_TOKEN, new DeviceInfo("ignored", "client-b.test"));
 
         assertThat(tokens.accessToken()).isEqualTo("access-token");
         assertThat(tokens.refreshToken()).isNotBlank().isNotEqualTo(CURRENT_TOKEN);
@@ -122,7 +122,7 @@ class AuthTokenServiceTest {
                 1L,
                 Provider.KAKAO,
                 "Chrome · Windows",
-                "203.0.113.1",
+                "client-b.test",
                 current.loginAt(),
                 Instant.now());
 
@@ -145,7 +145,7 @@ class AuthTokenServiceTest {
                         Duration.ofDays(13).toMillis()));
         when(memberClient.findMemberInfo(1L)).thenReturn(Optional.of(member));
 
-        TokenPair tokens = service.refresh(CURRENT_TOKEN, new DeviceInfo("ignored", "203.0.113.1"));
+        TokenPair tokens = service.refresh(CURRENT_TOKEN, new DeviceInfo("ignored", "client-b.test"));
 
         assertThat(tokens.refreshToken()).isEqualTo("replacement-token");
         assertThat(tokens.accessToken()).isEqualTo("access-token");
@@ -162,7 +162,7 @@ class AuthTokenServiceTest {
                 1L,
                 Provider.KAKAO,
                 "Chrome · Windows",
-                "203.0.113.1",
+                "client-b.test",
                 current.loginAt(),
                 Instant.now());
 
@@ -187,7 +187,7 @@ class AuthTokenServiceTest {
 
         NalssiLogException exception = catchThrowableOfType(
                 NalssiLogException.class,
-                () -> service.refresh(CURRENT_TOKEN, new DeviceInfo("ignored", "203.0.113.1")));
+                () -> service.refresh(CURRENT_TOKEN, new DeviceInfo("ignored", "client-b.test")));
 
         assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.AUTH_REFRESH_REUSED);
         verify(refreshTokenStore).revokeSession(1L, SESSION_ID, Duration.ofDays(14));
@@ -200,14 +200,13 @@ class AuthTokenServiceTest {
 
         NalssiLogException exception = catchThrowableOfType(
                 NalssiLogException.class,
-                () -> service.refresh(CURRENT_TOKEN, new DeviceInfo("ignored", "203.0.113.1")));
+                () -> service.refresh(CURRENT_TOKEN, new DeviceInfo("ignored", "client-b.test")));
 
         assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.AUTH_SESSION_EXPIRED);
         verify(refreshTokenStore, never()).revokeSession(any(), anyString(), any());
     }
 
     private static AuthProperties properties() {
-
         return new AuthProperties(
                 new AuthProperties.Jwt(
                         "test-secret-must-be-at-least-thirty-two-bytes",

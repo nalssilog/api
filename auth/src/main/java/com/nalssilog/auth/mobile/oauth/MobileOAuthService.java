@@ -123,6 +123,7 @@ public class MobileOAuthService {
         if (member.connectedProviders().contains(provider)) {
             throw new NalssiLogException(AuthErrorCode.ALREADY_LINKED_PROVIDER);
         }
+
         validateStart(provider, redirectUri, codeChallenge, codeChallengeMethod, appState);
 
         MobileOAuthTransaction transaction = new MobileOAuthTransaction(
@@ -148,23 +149,29 @@ public class MobileOAuthService {
         MobileOAuthTransaction transaction = transactionStore.take(transactionId)
                 .orElseThrow(() -> new NalssiLogException(
                         AuthErrorCode.AUTH_MOBILE_TRANSACTION_EXPIRED));
-        MobileOAuthGrant grant;
-
-        if (transaction.provider() != principal.userInfo().provider()) {
-            grant = MobileOAuthGrant.failed(transaction.provider(), AuthErrorCode.OAUTH_FAILED.getCode());
-        } else {
-            grant = switch (transaction.purpose()) {
-                case LOGIN -> completeLogin(principal);
-                case LOGIN_LINK_REAUTH -> completeLoginLink(transaction, principal);
-                case SETTINGS_LINK -> completeSettingsLink(transaction, principal);
-            };
-        }
+        MobileOAuthGrant grant = resolveGrant(transaction, principal);
 
         return issueCallback(transaction, grant);
     }
 
-    public Optional<String> completeFailure(String transactionId, String errorCode) {
+    private MobileOAuthGrant resolveGrant(
+            MobileOAuthTransaction transaction,
+            SocialPrincipal principal
+    ) {
+        if (transaction.provider() != principal.userInfo().provider()) {
+            return MobileOAuthGrant.failed(
+                    transaction.provider(),
+                    AuthErrorCode.OAUTH_FAILED.getCode());
+        }
 
+        return switch (transaction.purpose()) {
+            case LOGIN -> completeLogin(principal);
+            case LOGIN_LINK_REAUTH -> completeLoginLink(transaction, principal);
+            case SETTINGS_LINK -> completeSettingsLink(transaction, principal);
+        };
+    }
+
+    public Optional<String> completeFailure(String transactionId, String errorCode) {
         return transactionStore.take(transactionId)
                 .map(transaction -> issueCallback(
                         transaction,
@@ -178,6 +185,7 @@ public class MobileOAuthService {
             com.nalssilog.auth.device.DeviceInfo device
     ) {
         validateRedirectUri(redirectUri);
+
         if (codeVerifier == null || !CODE_VERIFIER_PATTERN.matcher(codeVerifier).matches()) {
             throw new NalssiLogException(AuthErrorCode.AUTH_PKCE_VERIFICATION_FAILED);
         }
@@ -278,7 +286,6 @@ public class MobileOAuthService {
                     && ticketStore.isLinkConsented(ticketId);
 
             if (!validOwner) {
-
                 return MobileOAuthGrant.failed(
                         transaction.provider(), AuthErrorCode.OAUTH_FAILED.getCode());
             }
@@ -296,7 +303,6 @@ public class MobileOAuthService {
                     ticket.provider(),
                     true);
         } catch (NalssiLogException _) {
-
             return MobileOAuthGrant.failed(
                     transaction.provider(), AuthErrorCode.OAUTH_FAILED.getCode());
         } finally {
@@ -321,7 +327,6 @@ public class MobileOAuthService {
                     principal.userInfo().provider(),
                     false);
         } catch (NalssiLogException _) {
-
             return MobileOAuthGrant.failed(
                     transaction.provider(), AuthErrorCode.OAUTH_FAILED.getCode());
         }
@@ -394,11 +399,10 @@ public class MobileOAuthService {
 
     private NalssiLogException failure(String errorCode) {
         if (AuthErrorCode.OAUTH_CANCELLED.getCode().equals(errorCode)) {
-
             return new NalssiLogException(AuthErrorCode.OAUTH_CANCELLED);
         }
-        if (AuthErrorCode.OAUTH_EMAIL_REQUIRED.getCode().equals(errorCode)) {
 
+        if (AuthErrorCode.OAUTH_EMAIL_REQUIRED.getCode().equals(errorCode)) {
             return new NalssiLogException(AuthErrorCode.OAUTH_EMAIL_REQUIRED);
         }
 
@@ -444,11 +448,13 @@ public class MobileOAuthService {
             String appState
     ) {
         validateRedirectUri(redirectUri);
+
         if (!"S256".equals(codeChallengeMethod)
                 || codeChallenge == null
                 || !CODE_CHALLENGE_PATTERN.matcher(codeChallenge).matches()) {
             throw new NalssiLogException(AuthErrorCode.AUTH_PKCE_VERIFICATION_FAILED);
         }
+
         if (appState == null
                 || !STATE_PATTERN.matcher(appState).matches()) {
             throw new NalssiLogException(AuthErrorCode.OAUTH_FAILED);
@@ -470,7 +476,6 @@ public class MobileOAuthService {
 
     private Provider provider(String text) {
         try {
-
             return Provider.from(text);
         } catch (IllegalArgumentException exception) {
             throw new NalssiLogException(AuthErrorCode.UNSUPPORTED_PROVIDER);

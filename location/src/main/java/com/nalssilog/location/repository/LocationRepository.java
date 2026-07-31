@@ -43,7 +43,6 @@ public class LocationRepository {
                 .toList();
 
         if (tokens.isEmpty()) {
-
             return Page.empty(pageable);
         }
 
@@ -105,7 +104,6 @@ public class LocationRepository {
                 .or(label.startsWith(token));
 
         if (token.length() == 1) {
-
             return prefixMatch;
         }
 
@@ -113,7 +111,6 @@ public class LocationRepository {
     }
 
     public LocationInfo getById(Long id) {
-
         return locationJpaRepository.findById(id)
                 .map(LocationInfo::of)
                 .orElseThrow(() -> new NalssiLogException(LocationErrorCode.LOCATION_NOT_FOUND));
@@ -132,7 +129,6 @@ public class LocationRepository {
     }
 
     public boolean isEmpty() {
-
         return locationJpaRepository.count() == 0;
     }
 
@@ -145,7 +141,6 @@ public class LocationRepository {
      * 동시에 같은 코드가 등록되면 유니크 키가 승자를 정하고 커밋된 행을 다시 조회한다.
      */
     public LocationInfo findOrCreate(KakaoRegion region) {
-
         return locationJpaRepository.findByAdminCode(region.adminCode())
                 .map(LocationInfo::of)
                 .orElseGet(() -> saveOrLoadConcurrent(region));
@@ -163,13 +158,11 @@ public class LocationRepository {
 
             return LocationInfo.of(locationJpaRepository.saveAndFlush(location));
         } catch (DataIntegrityViolationException exception) {
-
             return findByAdminCodeOrThrow(region.adminCode());
         }
     }
 
     private LocationInfo findByAdminCodeOrThrow(String adminCode) {
-
         return locationJpaRepository.findByAdminCode(adminCode)
                 .map(LocationInfo::of)
                 .orElseThrow(() -> new NalssiLogException(LocationErrorCode.LOCATION_NOT_FOUND));

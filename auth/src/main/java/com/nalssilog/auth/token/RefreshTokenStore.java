@@ -198,12 +198,10 @@ public class RefreshTokenStore {
         Map<Object, Object> raw = redisTemplate.opsForHash().entries(key(tokenHash));
 
         if (raw.isEmpty()) {
-
             return Optional.empty();
         }
 
         try {
-
             return Optional.of(toSessionData(tokenHash, raw));
         } catch (IllegalArgumentException _) {
             // provider 필드가 없던 구버전 세션은 실제 인증 수단을 보장할 수 없으므로 재로그인시킨다.
@@ -216,25 +214,21 @@ public class RefreshTokenStore {
         Map<Object, Object> raw = redisTemplate.opsForHash().entries(usedKey(tokenHash));
 
         if (raw.isEmpty()) {
-
             return Optional.empty();
         }
 
         try {
-
             return Optional.of(new UsedToken(
                     Long.valueOf(str(raw, FIELD_MEMBER_ID)),
                     str(raw, FIELD_SESSION_ID),
                     str(raw, FIELD_REPLACEMENT_HASH),
                     Instant.ofEpochMilli(Long.parseLong(str(raw, FIELD_USED_AT)))));
         } catch (IllegalArgumentException _) {
-
             return Optional.empty();
         }
     }
 
     public boolean isSessionRevoked(String sessionId) {
-
         return Boolean.TRUE.equals(redisTemplate.hasKey(revokedSessionKey(sessionId)));
     }
 
@@ -275,6 +269,7 @@ public class RefreshTokenStore {
         for (String sessionId : sessionIds) {
             deleted += revokeSession(memberId, sessionId, markerTtl);
         }
+
         redisTemplate.delete(memberKey(memberId));
 
         return deleted;
@@ -285,7 +280,6 @@ public class RefreshTokenStore {
         Set<String> hashes = redisTemplate.opsForSet().members(memberKey(memberId));
 
         if (hashes == null || hashes.isEmpty()) {
-
             return List.of();
         }
 
@@ -300,7 +294,6 @@ public class RefreshTokenStore {
 
     private RotationResult toRotationResult(List<Object> raw) {
         if (raw == null || raw.isEmpty()) {
-
             return RotationResult.missing();
         }
 
@@ -309,7 +302,6 @@ public class RefreshTokenStore {
         try {
             status = RotationStatus.valueOf(value(raw, 0));
         } catch (IllegalArgumentException _) {
-
             return RotationResult.missing();
         }
 
@@ -323,7 +315,6 @@ public class RefreshTokenStore {
     }
 
     private SessionData toSessionData(String tokenHash, Map<Object, Object> raw) {
-
         return new SessionData(
                 tokenHash,
                 str(raw, FIELD_SESSION_ID),
@@ -343,7 +334,6 @@ public class RefreshTokenStore {
 
     private String value(List<Object> raw, int index) {
         if (index >= raw.size() || raw.get(index) == null) {
-
             return "";
         }
 
@@ -363,27 +353,22 @@ public class RefreshTokenStore {
     }
 
     private String key(String tokenHash) {
-
         return KEY_PREFIX + tokenHash;
     }
 
     private String memberKey(Long memberId) {
-
         return MEMBER_SESSIONS_PREFIX + memberId;
     }
 
     private String usedKey(String tokenHash) {
-
         return USED_PREFIX + tokenHash;
     }
 
     private String retryKey(String tokenHash) {
-
         return RETRY_PREFIX + tokenHash;
     }
 
     private String revokedSessionKey(String sessionId) {
-
         return REVOKED_SESSION_PREFIX + sessionId;
     }
 
@@ -404,7 +389,6 @@ public class RefreshTokenStore {
             long refreshTokenTtlMillis
     ) {
         private static RotationResult missing() {
-
             return new RotationResult(RotationStatus.MISSING, "", "", null, "", 0);
         }
     }

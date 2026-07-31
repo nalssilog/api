@@ -38,7 +38,7 @@ class RefreshTokenStoreTest {
                 1L,
                 Provider.KAKAO,
                 "Chrome · Windows",
-                "203.0.113.1",
+                "client-b.test",
                 Instant.parse("2026-07-01T00:00:00Z"),
                 Instant.parse("2026-07-24T00:00:00Z"));
 

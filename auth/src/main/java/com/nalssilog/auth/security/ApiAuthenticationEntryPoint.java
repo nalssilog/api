@@ -34,10 +34,12 @@ public class ApiAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setCharacterEncoding("UTF-8");
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
         response.setHeader(HttpHeaders.PRAGMA, "no-cache");
+
         if (exception instanceof CredentialAuthenticationException credentialException
                 && credentialException.isBearer()) {
             response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
         }
+
         objectMapper.writeValue(
                 response.getWriter(),
                 new ErrorResponse(errorCode.getCode(), errorCode.getMessage()));

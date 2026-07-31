@@ -49,12 +49,10 @@ public class AuthCookieManager {
     }
 
     public Optional<String> readAccessToken(HttpServletRequest request) {
-
         return readCookie(request, ACCESS_TOKEN_COOKIE);
     }
 
     public Optional<String> readRefreshToken(HttpServletRequest request) {
-
         return readCookie(request, REFRESH_TOKEN_COOKIE);
     }
 
@@ -67,7 +65,6 @@ public class AuthCookieManager {
     }
 
     public Optional<String> readSignupTicket(HttpServletRequest request) {
-
         return readCookie(request, SIGNUP_TICKET_COOKIE);
     }
 
@@ -80,7 +77,6 @@ public class AuthCookieManager {
     }
 
     public Optional<String> readLinkTicket(HttpServletRequest request) {
-
         return readCookie(request, LINK_TICKET_COOKIE);
     }
 
@@ -93,7 +89,6 @@ public class AuthCookieManager {
     }
 
     public Optional<String> readLinkIntent(HttpServletRequest request) {
-
         return readCookie(request, LINK_INTENT_COOKIE);
     }
 
@@ -112,7 +107,6 @@ public class AuthCookieManager {
 
     private Optional<String> readCookie(HttpServletRequest request, String name) {
         if (request.getCookies() == null) {
-
             return Optional.empty();
         }
 

@@ -26,7 +26,6 @@ public class MobileAuthService {
             String codeChallengeMethod,
             String state
     ) {
-
         return mobileOAuthService.startLogin(
                 provider,
                 redirectUri,
@@ -41,12 +40,10 @@ public class MobileAuthService {
             String redirectUri,
             DeviceInfo device
     ) {
-
         return mobileOAuthService.exchange(code, verifier, redirectUri, device);
     }
 
     public TokenPair refresh(String refreshToken, DeviceInfo device) {
-
         return authService.refreshMobile(refreshToken, device);
     }
 
@@ -71,7 +68,6 @@ public class MobileAuthService {
             String codeChallengeMethod,
             String state
     ) {
-
         return mobileOAuthService.startLinkReauthentication(
                 linkTicket,
                 redirectUri,
@@ -92,7 +88,6 @@ public class MobileAuthService {
             String codeChallengeMethod,
             String state
     ) {
-
         return mobileOAuthService.startSettingsLink(
                 memberId,
                 provider,

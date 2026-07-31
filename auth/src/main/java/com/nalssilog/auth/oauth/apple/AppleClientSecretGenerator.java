@@ -25,6 +25,7 @@ public class AppleClientSecretGenerator {
 
     public String generate(String clientId) {
         properties.requireConfigured();
+
         if (clientId == null || clientId.isBlank()) {
             throw new IllegalStateException("Apple OAuth client-id is missing");
         }
@@ -33,14 +34,13 @@ public class AppleClientSecretGenerator {
         CachedSecret current = cachedSecret;
 
         if (isReusable(current, clientId, now)) {
-
             return current.value();
         }
 
         synchronized (this) {
             current = cachedSecret;
-            if (isReusable(current, clientId, now)) {
 
+            if (isReusable(current, clientId, now)) {
                 return current.value();
             }
 
@@ -70,7 +70,6 @@ public class AppleClientSecretGenerator {
             String clientId,
             Instant now
     ) {
-
         return secret != null
                 && secret.clientId().equals(clientId)
                 && secret.expiresAt()
@@ -98,7 +97,6 @@ public class AppleClientSecretGenerator {
     private byte[] encodedPrivateKey() {
         if (properties.privateKey() != null
                 && !properties.privateKey().isBlank()) {
-
             return decodePemOrBase64(properties.privateKey());
         }
 

@@ -46,7 +46,6 @@ public class WebOAuthService {
             DeviceInfo device
     ) {
         if (linkIntentId.isPresent()) {
-
             return completeSettingsLink(linkIntentId.get(), principal);
         }
 
@@ -66,7 +65,6 @@ public class WebOAuthService {
         ticketStore.deleteLinkIntent(intentId);
 
         if (memberId.isEmpty()) {
-
             return Completion.clearIntent(LINK_FAILED, null);
         }
 
@@ -75,7 +73,6 @@ public class WebOAuthService {
 
             return Completion.clearIntent(LINK_SUCCESS, null);
         } catch (NalssiLogException exception) {
-
             return Completion.clearIntent(
                     LINK_FAILED,
                     exception.getErrorCode().getCode());
@@ -88,12 +85,10 @@ public class WebOAuthService {
             DeviceInfo device
     ) {
         if (principal.result().status() == MemberStatus.WITHDRAWN) {
-
             return Completion.redirect(FAILED);
         }
 
         if (pendingLinkTicketId.isPresent()) {
-
             return completeLoginLink(
                     pendingLinkTicketId.get(),
                     principal,
@@ -121,7 +116,6 @@ public class WebOAuthService {
         ticketStore.deleteLinkConsent(ticketId);
 
         if (ticket == null || !consented) {
-
             return authenticated(
                     principal.result().memberId(),
                     principal.result().status(),
@@ -132,7 +126,6 @@ public class WebOAuthService {
         }
 
         if (!ticket.targetMemberId().equals(principal.result().memberId())) {
-
             return Completion.clearLinkTicket(LINK_FAILED);
         }
 
@@ -224,31 +217,26 @@ public class WebOAuthService {
     ) {
 
         private static Completion redirect(String result) {
-
             return new Completion(
                     result, null, null, null, null, false, false);
         }
 
         private static Completion clearIntent(String result, String errorCode) {
-
             return new Completion(
                     result, errorCode, null, null, null, true, false);
         }
 
         private static Completion clearLinkTicket(String result) {
-
             return new Completion(
                     result, null, null, null, null, false, true);
         }
 
         private static Completion signup(String ticketId) {
-
             return new Completion(
                     SIGNUP_REQUIRED, null, null, ticketId, null, false, false);
         }
 
         private static Completion link(String ticketId) {
-
             return new Completion(
                     LINK_REQUIRED, null, null, null, ticketId, false, false);
         }

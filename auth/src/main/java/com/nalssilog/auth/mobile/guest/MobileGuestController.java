@@ -20,7 +20,6 @@ public class MobileGuestController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public GuestCredentialResponse issue(HttpServletRequest request) {
-
         return GuestCredentialResponse.from(
                 credentialService.issue(deviceInfoResolver.resolveIp(request)));
     }

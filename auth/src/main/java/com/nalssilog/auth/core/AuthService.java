@@ -48,7 +48,6 @@ public class AuthService {
             boolean hasAuthenticationCookie
     ) {
         if (memberId != null) {
-
             return MeState.authenticated(memberClient.getMemberInfo(memberId));
         }
 
@@ -76,7 +75,6 @@ public class AuthService {
     }
 
     public SignupResult signup(String ticketId, List<TermsAgreement> agreedTerms, DeviceInfo device) {
-
         return signup(ticketId, agreedTerms, device, AuthChannel.WEB);
     }
 
@@ -85,7 +83,6 @@ public class AuthService {
             List<TermsAgreement> agreedTerms,
             DeviceInfo device
     ) {
-
         return signup(ticketId, agreedTerms, device, AuthChannel.MOBILE);
     }
 
@@ -106,12 +103,13 @@ public class AuthService {
                 properties.ticket().ttl());
 
         if (claim.status() == SignupClaimStatus.COMPLETED) {
-
             return replayCompletedSignup(claim.completion());
         }
+
         if (claim.status() == SignupClaimStatus.IN_PROGRESS) {
             throw new NalssiLogException(AuthErrorCode.AUTH_FLOW_IN_PROGRESS);
         }
+
         if (claim.status() == SignupClaimStatus.MISSING) {
             throw new NalssiLogException(AuthErrorCode.TICKET_NOT_FOUND);
         }
@@ -148,12 +146,10 @@ public class AuthService {
     }
 
     public TokenPair refresh(String refreshToken, DeviceInfo device) {
-
         return refresh(refreshToken, device, true);
     }
 
     public TokenPair refreshMobile(String refreshToken, DeviceInfo device) {
-
         return refresh(refreshToken, device, false);
     }
 
@@ -188,7 +184,6 @@ public class AuthService {
     }
 
     public List<SessionView> sessions(Long memberId, String currentSessionId) {
-
         return authSessionService.listSessions(memberId, currentSessionId);
     }
 
@@ -197,7 +192,6 @@ public class AuthService {
             String sessionId,
             String currentSessionId
     ) {
-
         return authSessionService.revokeSession(memberId, sessionId, currentSessionId);
     }
 
@@ -237,7 +231,6 @@ public class AuthService {
     }
 
     public String oauthAuthorizationUrl(String provider) {
-
         return "/oauth2/authorization/" + provider(provider).name().toLowerCase(Locale.ROOT);
     }
 
@@ -255,7 +248,6 @@ public class AuthService {
             List<TermsAgreement> agreedTerms
     ) {
         try {
-
             return memberClient.registerMember(
                     new OAuthUserInfo(
                             ticket.provider(),
@@ -264,7 +256,6 @@ public class AuthService {
                             ticket.socialName()),
                     agreedTerms);
         } catch (DataIntegrityViolationException exception) {
-
             return memberClient.findMemberInfo(
                             ticket.provider(),
                             ticket.providerUserId())
@@ -303,14 +294,12 @@ public class AuthService {
     }
 
     private boolean isTerminalRefreshError(NalssiLogException exception) {
-
         return exception.getErrorCode() == AuthErrorCode.AUTH_SESSION_EXPIRED
                 || exception.getErrorCode() == AuthErrorCode.AUTH_REFRESH_REUSED;
     }
 
     private Provider provider(String provider) {
         try {
-
             return Provider.from(provider);
         } catch (IllegalArgumentException _) {
             throw new NalssiLogException(AuthErrorCode.UNSUPPORTED_PROVIDER);
@@ -318,12 +307,10 @@ public class AuthService {
     }
 
     private String loginUrl(Provider provider) {
-
         return "/api/auth/login/" + provider.name().toLowerCase(Locale.ROOT);
     }
 
     private String reauthenticationUrl(Provider provider) {
-
         return "/api/auth/link/reauth/" + provider.name().toLowerCase(Locale.ROOT);
     }
 
@@ -343,12 +330,10 @@ public class AuthService {
     ) {
 
         public static MeState authenticated(MemberInfo member) {
-
             return new MeState(MeStatus.AUTHENTICATED, member, null, null, List.of());
         }
 
         public static MeState signupRequired(Provider provider, String email) {
-
             return new MeState(MeStatus.SIGNUP_REQUIRED, null, provider, email, List.of());
         }
 
@@ -357,12 +342,10 @@ public class AuthService {
                 String email,
                 List<Provider> existingProviders
         ) {
-
             return new MeState(MeStatus.LINK_REQUIRED, null, provider, email, List.copyOf(existingProviders));
         }
 
         public static MeState none() {
-
             return new MeState(MeStatus.NONE, null, null, null, List.of());
         }
     }

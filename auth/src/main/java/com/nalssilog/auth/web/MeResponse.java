@@ -38,23 +38,19 @@ public record MeResponse(
     }
 
     public static MeResponse signupRequired(Provider provider, String email) {
-
         return new MeResponse(false, AuthResult.SIGNUP_REQUIRED, null, new PendingAuth(provider, email, List.of()));
     }
 
     public static MeResponse linkRequired(Provider provider, String email, List<Provider> existingProviders) {
-
         return new MeResponse(false, AuthResult.LINK_REQUIRED, null,
                 new PendingAuth(provider, email, existingProviders));
     }
 
     public static MeResponse none() {
-
         return new MeResponse(false, AuthResult.NONE, null, null);
     }
 
     public static MeResponse from(MeState state) {
-
         return switch (state.status()) {
             case AUTHENTICATED -> authenticated(state.member());
             case SIGNUP_REQUIRED -> signupRequired(state.provider(), state.email());

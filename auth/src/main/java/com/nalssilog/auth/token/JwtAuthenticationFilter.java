@@ -53,11 +53,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (!authorizationHeaders.isEmpty()) {
             authenticateBearer(request, response, authorizationHeaders);
-            if (response.isCommitted()) {
 
+            if (response.isCommitted()) {
                 return;
             }
-        } else if (allowsCookieFallback(request)) {
+
+            filterChain.doFilter(request, response);
+
+            return;
+        }
+
+        if (allowsCookieFallback(request)) {
             authenticateCookie(request);
         }
 
@@ -90,12 +96,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             return;
         }
+
         if (validation.status() != TokenValidationStatus.VALID
                 || !isUsable(validation.payload())) {
             reject(request, response, AuthErrorCode.AUTH_ACCESS_TOKEN_INVALID);
 
             return;
         }
+
         if (isRevoked(validation.payload())) {
             reject(request, response, AuthErrorCode.AUTH_SESSION_EXPIRED);
 
@@ -115,12 +123,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean isUsable(AccessTokenPayload payload) {
-
         return payload != null && payload.status() != MemberStatus.WITHDRAWN;
     }
 
     private boolean isRevoked(AccessTokenPayload payload) {
-
         return payload.sessionId() != null
                 && !payload.sessionId().isBlank()
                 && refreshTokenStore.isSessionRevoked(payload.sessionId());

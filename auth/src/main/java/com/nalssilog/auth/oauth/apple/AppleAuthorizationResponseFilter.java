@@ -27,7 +27,6 @@ public class AppleAuthorizationResponseFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-
         return !HttpMethod.POST.matches(request.getMethod())
                 || !CALLBACK_PATH.equals(request.getRequestURI());
     }
@@ -48,9 +47,9 @@ public class AppleAuthorizationResponseFilter extends OncePerRequestFilter {
 
     private String readSocialName(String payload) {
         if (payload == null || payload.isBlank()) {
-
             return null;
         }
+
         if (payload.length() > MAX_USER_JSON_LENGTH) {
             log.warn("auth.apple.user_payload_rejected reason=too_large");
 
@@ -61,7 +60,6 @@ public class AppleAuthorizationResponseFilter extends OncePerRequestFilter {
             AppleUser user = objectMapper.readValue(payload, AppleUser.class);
 
             if (user == null || user.name() == null) {
-
                 return null;
             }
 
@@ -70,7 +68,6 @@ public class AppleAuthorizationResponseFilter extends OncePerRequestFilter {
             String combined = (firstName + " " + lastName).strip();
 
             if (combined.isBlank()) {
-
                 return null;
             }
 
@@ -86,7 +83,6 @@ public class AppleAuthorizationResponseFilter extends OncePerRequestFilter {
 
     private String sanitize(String value) {
         if (value == null) {
-
             return "";
         }
 

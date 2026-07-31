@@ -59,7 +59,6 @@ public record PopularLocationsResponse(
     ) {
 
         private static Ranking from(PopularLocationSnapshotInfo.Item item) {
-
             return new Ranking(
                     item.rank(),
                     item.previousRank(),

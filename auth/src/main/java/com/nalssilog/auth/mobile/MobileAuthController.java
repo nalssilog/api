@@ -52,7 +52,6 @@ public class MobileAuthController {
             @Valid @RequestBody MobileTokenRequest request,
             HttpServletRequest httpRequest
     ) {
-
         return MobileTokenResponse.from(
                 mobileAuthService.exchange(
                         request.code(),
@@ -67,7 +66,6 @@ public class MobileAuthController {
             @Valid @RequestBody MobileRefreshRequest request,
             HttpServletRequest httpRequest
     ) {
-
         return MobileRefreshResponse.from(
                 mobileAuthService.refresh(
                         request.refreshToken(),
@@ -86,7 +84,6 @@ public class MobileAuthController {
             @Valid @RequestBody MobileSignupRequest request,
             HttpServletRequest httpRequest
     ) {
-
         return MobileTokenResponse.signup(
                 mobileAuthService.signup(
                         request.signupTicket(),
@@ -99,7 +96,6 @@ public class MobileAuthController {
     public MobileAuthorizationResponse consentLink(
             @Valid @RequestBody MobileLinkConsentRequest request
     ) {
-
         return new MobileAuthorizationResponse(mobileAuthService.consentLink(
                 request.linkTicket(),
                 request.redirectUri(),
@@ -120,7 +116,6 @@ public class MobileAuthController {
             @PathVariable String provider,
             @Valid @RequestBody MobileLinkStartRequest request
     ) {
-
         return new MobileAuthorizationResponse(mobileAuthService.startSettingsLink(
                 memberId,
                 provider,

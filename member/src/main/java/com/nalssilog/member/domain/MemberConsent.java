@@ -50,6 +50,7 @@ public class MemberConsent extends BaseTimeEntity {
 
     public static MemberConsent agree(Long memberId, TermsType termsType, String version) {
         MemberConsent consent = new MemberConsent();
+
         consent.memberId = memberId;
         consent.termsType = termsType;
         consent.version = version;

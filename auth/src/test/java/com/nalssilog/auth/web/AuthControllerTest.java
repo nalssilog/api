@@ -157,7 +157,6 @@ class AuthControllerTest {
     }
 
     private MemberInfo member() {
-
         return new MemberInfo(
                 1L,
                 "닉네임",
@@ -171,7 +170,6 @@ class AuthControllerTest {
     }
 
     private AuthProperties properties() {
-
         return new AuthProperties(
                 new AuthProperties.Jwt(
                         "test-secret-must-be-at-least-thirty-two-bytes",

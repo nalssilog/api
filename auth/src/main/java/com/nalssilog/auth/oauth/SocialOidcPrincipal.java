@@ -23,38 +23,32 @@ public record SocialOidcPrincipal(
 
     @Override
     public Map<String, Object> getClaims() {
-
         return delegate.getClaims();
     }
 
     @Override
     public OidcUserInfo getUserInfo() {
-
         return delegate.getUserInfo();
     }
 
     @Override
     public OidcIdToken getIdToken() {
-
         return delegate.getIdToken();
     }
 
     @Override
     public Map<String, Object> getAttributes() {
-
         return delegate.getAttributes();
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-
         return List.of(new SimpleGrantedAuthority(
                 SocialAuthPrincipal.roleOf(result.status())));
     }
 
     @Override
     public String getName() {
-
         return result.memberId() == null
                 ? delegate.getName()
                 : String.valueOf(result.memberId());

@@ -48,7 +48,6 @@ public class AuthTicketStore {
     }
 
     public Optional<SignupTicket> findSignup(String ticketId) {
-
         return read(SIGNUP_PREFIX + ticketId, SignupTicket.class);
     }
 
@@ -60,7 +59,6 @@ public class AuthTicketStore {
         Optional<SignupCompletion> completed = findSignupCompletion(ticketId);
 
         if (completed.isPresent()) {
-
             return SignupClaim.completed(completed.get());
         }
 
@@ -70,7 +68,6 @@ public class AuthTicketStore {
                 ttl);
 
         if (!Boolean.TRUE.equals(acquired)) {
-
             return findSignupCompletion(ticketId)
                     .map(SignupClaim::completed)
                     .orElseGet(SignupClaim::inProgress);
@@ -118,7 +115,6 @@ public class AuthTicketStore {
     }
 
     public Optional<SignupCompletion> findSignupCompletion(String ticketId) {
-
         return read(SIGNUP_COMPLETED_PREFIX + ticketId, SignupCompletion.class);
     }
 
@@ -127,7 +123,6 @@ public class AuthTicketStore {
     }
 
     public Optional<LinkTicket> findLink(String ticketId) {
-
         return read(LINK_PREFIX + ticketId, LinkTicket.class);
     }
 
@@ -141,7 +136,6 @@ public class AuthTicketStore {
     }
 
     public boolean isLinkConsented(String ticketId) {
-
         return Boolean.TRUE.equals(redisTemplate.hasKey(LINK_CONSENT_PREFIX + ticketId));
     }
 
@@ -168,12 +162,10 @@ public class AuthTicketStore {
         String value = redisTemplate.opsForValue().get(key);
 
         if (value == null) {
-
             return Optional.empty();
         }
 
         try {
-
             return Optional.of(OBJECT_MAPPER.readValue(value, type));
         } catch (JacksonException e) {
             throw new IllegalStateException("인증 티켓 역직렬화 실패", e);
@@ -182,7 +174,6 @@ public class AuthTicketStore {
 
     private String serialize(Object ticket) {
         try {
-
             return OBJECT_MAPPER.writeValueAsString(ticket);
         } catch (JacksonException e) {
             throw new IllegalStateException("인증 티켓 직렬화 실패", e);
@@ -213,22 +204,18 @@ public class AuthTicketStore {
     ) {
 
         private static SignupClaim claimed(SignupTicket ticket) {
-
             return new SignupClaim(SignupClaimStatus.CLAIMED, ticket, null);
         }
 
         private static SignupClaim completed(SignupCompletion completion) {
-
             return new SignupClaim(SignupClaimStatus.COMPLETED, null, completion);
         }
 
         private static SignupClaim inProgress() {
-
             return new SignupClaim(SignupClaimStatus.IN_PROGRESS, null, null);
         }
 
         private static SignupClaim missing() {
-
             return new SignupClaim(SignupClaimStatus.MISSING, null, null);
         }
     }

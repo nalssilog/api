@@ -114,7 +114,6 @@ public class AuthController {
         @AuthenticationPrincipal Long memberId,
         @CurrentSecurityContext(expression = "authentication.details.sessionId") String currentSessionId
     ) {
-
         return authService.sessions(memberId, currentSessionId).stream()
             .map(SessionResponse::from)
             .toList();
@@ -154,7 +153,6 @@ public class AuthController {
     /** 로그인-시점 연동 동의 + 기존 수단 재인증 URL 반환. */
     @PostMapping("/link/consent")
     public LinkConsentResponse consentLink(HttpServletRequest request) {
-
         return new LinkConsentResponse(authService.consentLink(
             cookieManager.readLinkTicket(request).orElse(null)));
     }

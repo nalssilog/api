@@ -24,7 +24,6 @@ public record SignupTicket(
     }
 
     public AuthChannel effectiveChannel() {
-
         return channel == null ? AuthChannel.WEB : channel;
     }
 }

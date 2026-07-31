@@ -28,11 +28,11 @@ class MobileGuestCredentialServiceTest {
 
     @Test
     void issueReturnsRawSecretOnlyOnceAndPersistsItsHash() {
-        var issued = service.issue("203.0.113.10");
+        var issued = service.issue("client-a.test");
         ArgumentCaptor<MobileGuestCredential> credentialCaptor =
                 ArgumentCaptor.forClass(MobileGuestCredential.class);
 
-        verify(rateLimiter).check("203.0.113.10");
+        verify(rateLimiter).check("client-a.test");
         verify(repository).save(credentialCaptor.capture());
 
         MobileGuestCredential persisted = credentialCaptor.getValue();
@@ -64,7 +64,6 @@ class MobileGuestCredentialServiceTest {
     }
 
     private AuthProperties properties() {
-
         return new AuthProperties(
                 new AuthProperties.Jwt(
                         "test-secret-must-be-at-least-thirty-two-bytes",

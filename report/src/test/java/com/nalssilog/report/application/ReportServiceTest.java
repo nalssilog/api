@@ -66,6 +66,7 @@ class ReportServiceTest {
     @Test
     void memberAuthorDeletesReportAndRelatedData() {
         WeatherReport report = memberReport(1L);
+
         report.addImages(List.of("reports/2026/07/one.jpg", "reports/2026/07/two.jpg"));
         when(reportRepository.getReportEntity(10L)).thenReturn(report);
 
@@ -75,6 +76,7 @@ class ReportServiceTest {
         verify(reportRepository).delete(report);
 
         ArgumentCaptor<ReportDeletedEvent> eventCaptor = ArgumentCaptor.forClass(ReportDeletedEvent.class);
+
         verify(eventPublisher).publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue().imageKeys())
                 .containsExactly("reports/2026/07/one.jpg", "reports/2026/07/two.jpg");
@@ -83,6 +85,7 @@ class ReportServiceTest {
     @Test
     void anonymousAuthorCanDeleteWithExistingAnonymousCookieIdentity() {
         WeatherReport report = anonymousReport("anonymous-key");
+
         when(reportRepository.getReportEntity(10L)).thenReturn(report);
 
         service.delete(10L, List.of(
@@ -97,6 +100,7 @@ class ReportServiceTest {
     void nonAuthorCannotDeleteReport() {
         WeatherReport report = memberReport(1L);
         List<ReportActor> actors = List.of(ReportActor.member(2L));
+
         when(reportRepository.getReportEntity(10L)).thenReturn(report);
 
         NalssiLogException exception = catchThrowableOfType(
@@ -113,6 +117,7 @@ class ReportServiceTest {
     @Test
     void detailMarksPreLoginAnonymousReportAsMineAfterLogin() {
         ReportData data = anonymousData("anonymous-key");
+
         when(reportRepository.getReport(10L)).thenReturn(data);
         when(locationClient.getLocation(1L)).thenReturn(location());
 
@@ -128,6 +133,7 @@ class ReportServiceTest {
     @Test
     void listIncludesOwnershipCalculatedFromAllAvailableActors() {
         ReportData data = anonymousData("anonymous-key");
+
         when(reportRepository.findPage(eq(1L), isNull(), isNull(), eq(21)))
                 .thenReturn(List.of(data));
         when(locationClient.getLocation(1L)).thenReturn(location());
@@ -177,6 +183,7 @@ class ReportServiceTest {
     @Test
     void statsAggregatesReportsFromTheLastThreeHours() {
         WeatherStatsData stats = new WeatherStatsData(0L, Map.of(), Map.of(), Map.of());
+
         when(locationClient.getLocation(1L)).thenReturn(location());
         when(reportRepository.statsSince(eq(1L), any(Instant.class)))
                 .thenReturn(stats);
@@ -185,6 +192,7 @@ class ReportServiceTest {
         service.stats(1L);
 
         ArgumentCaptor<Instant> sinceCaptor = ArgumentCaptor.forClass(Instant.class);
+
         verify(reportRepository).statsSince(eq(1L), sinceCaptor.capture());
         assertThat(sinceCaptor.getValue())
                 .isBetween(lowerBound, Instant.now().minusSeconds(3 * 60 * 60));

@@ -190,7 +190,6 @@ class LocationServiceTest {
     }
 
     private LocationInfo location(Long id, String dong) {
-
         return new LocationInfo(id, "서울특별시", "강남구", dong, 37.5, 127.0);
     }
 }

@@ -59,7 +59,6 @@ public class FeedbackRateLimiter {
 
     String actor(Long memberId, String remoteAddress) {
         if (memberId != null) {
-
             return "member:" + memberId;
         }
 

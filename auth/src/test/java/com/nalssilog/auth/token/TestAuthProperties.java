@@ -9,12 +9,10 @@ final class TestAuthProperties {
     }
 
     static AuthProperties create() {
-
         return create(Duration.ofMinutes(5));
     }
 
     static AuthProperties create(Duration accessTokenTtl) {
-
         return new AuthProperties(
                 new AuthProperties.Jwt(
                         "test-secret-must-be-at-least-thirty-two-bytes",

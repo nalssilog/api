@@ -55,7 +55,6 @@ class GlobalExceptionHandlerTest {
     }
 
     private AuthProperties properties() {
-
         return new AuthProperties(
                 new AuthProperties.Jwt(
                         "test-secret-must-be-at-least-thirty-two-bytes",

@@ -20,15 +20,18 @@ public record AppleOAuthProperties(
         if (clientSecretTtl == null) {
             clientSecretTtl = Duration.ofDays(30);
         }
+
         if (clientSecretTtl.isNegative()
                 || clientSecretTtl.isZero()
                 || clientSecretTtl.compareTo(MAX_CLIENT_SECRET_TTL) > 0) {
             throw new IllegalArgumentException(
                     "Apple OAuth client-secret-ttl must be between 1ms and 180 days");
         }
+
         if (refreshBeforeExpiry == null) {
             refreshBeforeExpiry = Duration.ofDays(1);
         }
+
         if (refreshBeforeExpiry.isNegative()
                 || refreshBeforeExpiry.compareTo(clientSecretTtl) >= 0) {
             throw new IllegalArgumentException(
@@ -39,6 +42,7 @@ public record AppleOAuthProperties(
     public void requireConfigured() {
         requireText(teamId, "team-id");
         requireText(keyId, "key-id");
+
         if (!hasText(privateKey) && !hasText(privateKeyBase64)) {
             throw new IllegalStateException(
                     "Apple OAuth is active but neither private-key nor "
@@ -55,13 +59,11 @@ public record AppleOAuthProperties(
     }
 
     private boolean hasText(String value) {
-
         return value != null && !value.isBlank();
     }
 
     @Override
     public String toString() {
-
         return "AppleOAuthProperties[teamId=<redacted>, keyId=<redacted>, "
                 + "privateKey=<redacted>, privateKeyBase64=<redacted>, clientSecretTtl="
                 + clientSecretTtl

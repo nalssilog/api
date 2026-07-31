@@ -27,7 +27,6 @@ public class MobileOAuthAuthorizationRequestResolver implements OAuth2Authorizat
 
     @Override
     public OAuth2AuthorizationRequest resolve(HttpServletRequest request) {
-
         return attachMobileTransaction(
                 request,
                 customizeProvider(delegate.resolve(request)));
@@ -38,7 +37,6 @@ public class MobileOAuthAuthorizationRequestResolver implements OAuth2Authorizat
             HttpServletRequest request,
             String clientRegistrationId
     ) {
-
         return attachMobileTransaction(
                 request,
                 customizeProvider(
@@ -49,7 +47,6 @@ public class MobileOAuthAuthorizationRequestResolver implements OAuth2Authorizat
             OAuth2AuthorizationRequest authorizationRequest
     ) {
         if (authorizationRequest == null) {
-
             return null;
         }
 
@@ -57,7 +54,6 @@ public class MobileOAuthAuthorizationRequestResolver implements OAuth2Authorizat
                 OAuth2ParameterNames.REGISTRATION_ID);
 
         if (!AppleOAuthProperties.REGISTRATION_ID.equals(registrationId)) {
-
             return authorizationRequest;
         }
 
@@ -72,7 +68,6 @@ public class MobileOAuthAuthorizationRequestResolver implements OAuth2Authorizat
             OAuth2AuthorizationRequest authorizationRequest
     ) {
         if (authorizationRequest == null) {
-
             return null;
         }
 
@@ -80,9 +75,9 @@ public class MobileOAuthAuthorizationRequestResolver implements OAuth2Authorizat
                 MobileOAuthRequestAttributes.TRANSACTION_PARAMETER);
 
         if (values == null || values.length == 0) {
-
             return authorizationRequest;
         }
+
         if (values.length != 1 || values[0] == null || values[0].isBlank()) {
             throw invalidTransaction();
         }
@@ -106,7 +101,6 @@ public class MobileOAuthAuthorizationRequestResolver implements OAuth2Authorizat
     }
 
     private OAuth2AuthenticationException invalidTransaction() {
-
         return new OAuth2AuthenticationException(
                 new OAuth2Error("invalid_mobile_transaction"),
                 "Invalid mobile OAuth transaction");

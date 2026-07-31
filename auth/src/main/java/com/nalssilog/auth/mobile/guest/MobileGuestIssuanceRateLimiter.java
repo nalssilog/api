@@ -65,11 +65,13 @@ public class MobileGuestIssuanceRateLimiter {
                     fingerprint.substring(0, 12));
             throw new NalssiLogException(AuthErrorCode.GUEST_ISSUANCE_UNAVAILABLE);
         }
+
         if (result > 0) {
             log.warn("auth.guest.issue_rate_limited scope=ip ip={} count={}",
                     fingerprint.substring(0, 12), result);
             throw new NalssiLogException(AuthErrorCode.GUEST_ISSUANCE_RATE_LIMITED);
         }
+
         if (result < 0) {
             log.warn("auth.guest.issue_rate_limited scope=global count={}", -result);
             throw new NalssiLogException(AuthErrorCode.GUEST_ISSUANCE_RATE_LIMITED);

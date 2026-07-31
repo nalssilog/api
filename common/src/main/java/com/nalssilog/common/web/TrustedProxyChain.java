@@ -30,14 +30,12 @@ public final class TrustedProxyChain {
         String peer = normalize(nativeRequest.getRemoteAddr());
 
         if (!isTrusted(peer)) {
-
             return peer;
         }
 
         String forwardedFor = nativeRequest.getHeader("X-Forwarded-For");
 
         if (!StringUtils.hasText(forwardedFor)) {
-
             return peer;
         }
 
@@ -50,6 +48,7 @@ public final class TrustedProxyChain {
             if (!StringUtils.hasText(candidate)) {
                 break;
             }
+
             current = candidate;
         }
 
@@ -66,6 +65,7 @@ public final class TrustedProxyChain {
             if (nested == current) {
                 break;
             }
+
             current = nested;
         }
 
@@ -74,17 +74,15 @@ public final class TrustedProxyChain {
 
     private boolean isTrusted(String address) {
         if (!StringUtils.hasText(address)) {
-
             return false;
         }
+
         for (IpAddressMatcher matcher : trustedProxies) {
             try {
                 if (matcher.matches(address)) {
-
                     return true;
                 }
             } catch (IllegalArgumentException _) {
-
                 return false;
             }
         }
@@ -94,7 +92,6 @@ public final class TrustedProxyChain {
 
     private String normalize(String address) {
         if (!StringUtils.hasText(address)) {
-
             return "unknown";
         }
 
@@ -103,11 +100,11 @@ public final class TrustedProxyChain {
         if (normalized.length() >= 2 && normalized.startsWith("\"") && normalized.endsWith("\"")) {
             normalized = normalized.substring(1, normalized.length() - 1);
         }
+
         if (normalized.startsWith("[")) {
             int closingBracket = normalized.indexOf(']');
 
             if (closingBracket > 1) {
-
                 return normalized.substring(1, closingBracket);
             }
         }
@@ -115,7 +112,6 @@ public final class TrustedProxyChain {
         int colon = normalized.lastIndexOf(':');
 
         if (colon > 0 && normalized.indexOf(':') == colon && normalized.substring(0, colon).contains(".")) {
-
             return normalized.substring(0, colon);
         }
 

@@ -22,7 +22,6 @@ public final class VerifiedRequestCredentials {
     }
 
     public static boolean hasBearer(HttpServletRequest request) {
-
         return Boolean.TRUE.equals(request.getAttribute(BEARER_ATTRIBUTE));
     }
 
@@ -39,12 +38,10 @@ public final class VerifiedRequestCredentials {
     }
 
     public static boolean hasGuest(HttpServletRequest request) {
-
         return guestAnonymousKey(request).isPresent();
     }
 
     public static boolean hasNonCookieCredential(HttpServletRequest request) {
-
         return hasBearer(request) || hasGuest(request);
     }
 }

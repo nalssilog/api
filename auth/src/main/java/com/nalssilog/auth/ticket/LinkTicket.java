@@ -28,7 +28,6 @@ public record LinkTicket(
     }
 
     public AuthChannel effectiveChannel() {
-
         return channel == null ? AuthChannel.WEB : channel;
     }
 }

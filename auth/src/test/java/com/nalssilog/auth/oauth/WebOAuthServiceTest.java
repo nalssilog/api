@@ -39,7 +39,7 @@ class WebOAuthServiceTest {
 
     @Test
     void loginLinkIssuesSessionForNewlyLinkedProvider() {
-        DeviceInfo device = new DeviceInfo("Chrome", "203.0.113.10");
+        DeviceInfo device = new DeviceInfo("Chrome", "client-a.test");
         LinkTicket ticket = new LinkTicket(
                 Provider.KAKAO,
                 "new-kakao-user",
@@ -102,7 +102,6 @@ class WebOAuthServiceTest {
     }
 
     private MemberInfo member() {
-
         return new MemberInfo(
                 7L,
                 "구름산책",

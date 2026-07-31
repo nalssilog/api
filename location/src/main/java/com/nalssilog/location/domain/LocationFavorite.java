@@ -37,6 +37,7 @@ public class LocationFavorite extends BaseTimeEntity {
 
     public static LocationFavorite of(Long memberId, Long locationId) {
         LocationFavorite favorite = new LocationFavorite();
+
         favorite.memberId = memberId;
         favorite.locationId = locationId;
 

@@ -56,7 +56,6 @@ public class AuthTokenService {
         Optional<SessionData> current = refreshTokenStore.findSession(currentHash);
 
         if (current.isEmpty()) {
-
             return resolveInactiveRefresh(currentHash);
         }
 
@@ -111,7 +110,6 @@ public class AuthTokenService {
 
     /** refresh 토큰의 세션 키(해시). '현재 세션' 판별용. */
     public String tokenHash(String refreshToken) {
-
         return hash(refreshToken);
     }
 
@@ -126,11 +124,10 @@ public class AuthTokenService {
         RefreshTokenStore.UsedToken used = refreshTokenStore.findUsedToken(currentHash).orElse(null);
 
         if (used == null) {
-
             return rejectExpired(currentHash, "not_found_or_expired");
         }
-        if (refreshTokenStore.isSessionRevoked(used.sessionId())) {
 
+        if (refreshTokenStore.isSessionRevoked(used.sessionId())) {
             return rejectExpired(currentHash, "session_revoked");
         }
 
@@ -138,7 +135,6 @@ public class AuthTokenService {
         SessionData replacement = refreshTokenStore.findSession(used.replacementHash()).orElse(null);
 
         if (replacement == null) {
-
             return rejectReuse(
                     new RotationResult(RotationStatus.REUSED, "", used.replacementHash(),
                             used.memberId(), used.sessionId(), 0),
@@ -182,16 +178,20 @@ public class AuthTokenService {
     }
 
     private TokenPair rejectReuse(RotationResult result, String currentHash) {
-        if (result.memberId() != null && result.sessionId() != null && !result.sessionId().isBlank()) {
-            long revoked = refreshTokenStore.revokeSession(
-                    result.memberId(), result.sessionId(), properties.jwt().refreshTokenTtl());
-
-            log.warn("auth.refresh.reuse_detected memberId={} sessionId={} revokedTokens={} token={}",
-                    result.memberId(), result.sessionId(), revoked, fingerprint(currentHash));
-        } else {
+        if (result.memberId() == null
+                || result.sessionId() == null
+                || result.sessionId().isBlank()) {
             log.warn("auth.refresh.reuse_detected memberId=unknown sessionId=unknown token={}",
                     fingerprint(currentHash));
+
+            throw new NalssiLogException(AuthErrorCode.AUTH_REFRESH_REUSED);
         }
+
+        long revoked = refreshTokenStore.revokeSession(
+                result.memberId(), result.sessionId(), properties.jwt().refreshTokenTtl());
+
+        log.warn("auth.refresh.reuse_detected memberId={} sessionId={} revokedTokens={} token={}",
+                result.memberId(), result.sessionId(), revoked, fingerprint(currentHash));
 
         throw new NalssiLogException(AuthErrorCode.AUTH_REFRESH_REUSED);
     }
@@ -207,7 +207,6 @@ public class AuthTokenService {
     }
 
     private MemberInfo activeMember(Long memberId, String sessionId, String tokenHash) {
-
         return memberClient.findMemberInfo(memberId).orElseThrow(() -> {
             refreshTokenStore.revokeSession(memberId, sessionId, properties.jwt().refreshTokenTtl());
 
@@ -231,7 +230,6 @@ public class AuthTokenService {
 
     private SessionData sessionData(String tokenHash, Long memberId, Provider provider, String sessionId,
                                     Instant loginAt, DeviceInfo device) {
-
         return new SessionData(
                 tokenHash,
                 sessionId,
@@ -250,7 +248,6 @@ public class AuthTokenService {
             String refreshToken,
             Duration maxAge
     ) {
-
         return new TokenPair(
                 jwtTokenProvider.createAccessToken(member.id(), member.status(), provider, sessionId),
                 refreshToken,
@@ -266,7 +263,6 @@ public class AuthTokenService {
     }
 
     private String fingerprint(String tokenHash) {
-
         return tokenHash.substring(0, Math.min(FINGERPRINT_LENGTH, tokenHash.length()));
     }
 

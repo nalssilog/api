@@ -23,25 +23,21 @@ public class MemberClient {
     private final MemberRegistrationService memberRegistrationService;
 
     public SocialLoginResult resolveSocialLogin(OAuthUserInfo userInfo) {
-
         return memberAccountService.resolveSocialLogin(
                 userInfo.provider(), userInfo.providerUserId(), userInfo.email());
     }
 
     public MemberInfo registerMember(OAuthUserInfo userInfo, List<TermsAgreement> agreedTerms) {
-
         return memberRegistrationService.registerMember(
                 userInfo.provider(), userInfo.providerUserId(), userInfo.email(), userInfo.socialName(), agreedTerms);
     }
 
     public MemberInfo linkSocial(Long targetMemberId, OAuthUserInfo userInfo) {
-
         return memberAccountService.linkSocial(
                 targetMemberId, userInfo.provider(), userInfo.providerUserId(), userInfo.email());
     }
 
     public MemberInfo getMemberInfo(Long memberId) {
-
         return memberAccountService.getMemberInfo(memberId);
     }
 
@@ -50,7 +46,6 @@ public class MemberClient {
     }
 
     public Optional<MemberInfo> findMemberInfo(Long memberId) {
-
         return memberAccountService.findMemberInfo(memberId);
     }
 
@@ -58,7 +53,6 @@ public class MemberClient {
             Provider provider,
             String providerUserId
     ) {
-
         return memberAccountService.findMemberInfo(provider, providerUserId);
     }
 

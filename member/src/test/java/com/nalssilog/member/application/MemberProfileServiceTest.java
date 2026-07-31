@@ -48,6 +48,7 @@ class MemberProfileServiceTest {
                 null,
                 List.of()
         );
+
         when(memberRepository.getMember(1L)).thenReturn(member);
         when(memberRepository.getMemberInfo(1L)).thenReturn(expected);
 
@@ -62,6 +63,7 @@ class MemberProfileServiceTest {
         Member member = Member.register("user@example.com", "이름", "인사하는감자123");
         SocialAccount current = SocialAccount.register(
                 member, Provider.KAKAO, "kakao-id", "user@example.com");
+
         when(socialAccountRepository.findByMemberIdAndProvider(1L, Provider.KAKAO))
                 .thenReturn(Optional.of(current));
 
@@ -79,6 +81,7 @@ class MemberProfileServiceTest {
         Member member = Member.register("user@example.com", "이름", "인사하는감자123");
         SocialAccount linked = SocialAccount.link(
                 member, Provider.NAVER, "naver-id", "user@example.com");
+
         when(socialAccountRepository.findByMemberIdAndProvider(1L, Provider.NAVER))
                 .thenReturn(Optional.of(linked));
         when(socialAccountRepository.countByMemberId(1L)).thenReturn(2L);

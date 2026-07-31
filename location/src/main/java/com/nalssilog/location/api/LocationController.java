@@ -26,7 +26,6 @@ public class LocationController {
             @RequestParam @NotBlank @Size(max = 50) String keyword,
             @RequestParam(defaultValue = "0") @Min(0) int page
     ) {
-
         return locationService.search(keyword, page).map(LocationResponse::from);
     }
 
@@ -35,19 +34,16 @@ public class LocationController {
             @RequestParam double lat,
             @RequestParam double lng
     ) {
-
         return LocationResponse.from(locationService.reverseGeocode(lat, lng));
     }
 
     @GetMapping("/popular")
     public PopularLocationsResponse popular() {
-
         return PopularLocationsResponse.from(locationService.getPopular());
     }
 
     @GetMapping("/{id}")
     public LocationResponse detail(@PathVariable Long id) {
-
         return LocationResponse.from(locationService.getLocation(id));
     }
 }

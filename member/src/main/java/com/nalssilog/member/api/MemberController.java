@@ -38,7 +38,6 @@ public class MemberController {
 
     @GetMapping("/nickname/availability")
     public NicknameAvailabilityResponse checkNickname(@RequestParam @NotBlank String nickname) {
-
         return new NicknameAvailabilityResponse(memberProfileService.isNicknameAvailable(nickname));
     }
 
@@ -47,13 +46,11 @@ public class MemberController {
         @AuthenticationPrincipal Long memberId,
         @CurrentSecurityContext(expression = "authentication.details.provider") Provider currentProvider
     ) {
-
         return MemberMeResponse.from(memberProfileService.getMe(memberId), currentProvider);
     }
 
     @GetMapping("/{id}")
     public MemberPublicProfileResponse publicProfile(@PathVariable Long id) {
-
         return MemberPublicProfileResponse.from(memberProfileService.getPublicProfile(id));
     }
 
@@ -63,7 +60,6 @@ public class MemberController {
         @CurrentSecurityContext(expression = "authentication.details.provider") Provider currentProvider,
         @Valid @RequestBody ChangeNameRequest request
     ) {
-
         return MemberMeResponse.from(memberProfileService.changeName(memberId, request.name()), currentProvider);
     }
 
@@ -73,7 +69,6 @@ public class MemberController {
         @CurrentSecurityContext(expression = "authentication.details.provider") Provider currentProvider,
         @Valid @RequestBody ChangeNicknameRequest request
     ) {
-
         return MemberMeResponse.from(
                 memberProfileService.changeNickname(memberId, request.nickname()),
                 currentProvider);
@@ -85,7 +80,6 @@ public class MemberController {
         @CurrentSecurityContext(expression = "authentication.details.provider") Provider currentProvider,
         @Valid @RequestBody ChangeAvatarRequest request
     ) {
-
         return MemberMeResponse.from(
                 memberProfileService.changeAvatar(memberId, request.type(), request.value()),
                 currentProvider);
@@ -96,14 +90,12 @@ public class MemberController {
         @AuthenticationPrincipal Long memberId,
         @Valid @RequestBody AvatarPresignRequest request
     ) {
-
         return AvatarPresignResponse.from(
                 memberProfileService.presignAvatar(memberId, request.contentType(), request.size()));
     }
 
     @GetMapping("/me/social-accounts")
     public List<SocialAccountResponse> socialAccounts(@AuthenticationPrincipal Long memberId) {
-
         return memberProfileService.getSocialAccounts(memberId).stream()
                 .map(SocialAccountResponse::from)
                 .toList();

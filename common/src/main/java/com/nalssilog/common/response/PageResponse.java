@@ -22,7 +22,6 @@ public record PageResponse<T>(
     }
 
     public static <T> PageResponse<T> from(Page<T> source) {
-
         return new PageResponse<>(
                 source.getContent(),
                 source.getNumber(),
@@ -56,7 +55,6 @@ public record PageResponse<T>(
     }
 
     public <R> PageResponse<R> map(Function<T, R> mapper) {
-
         return new PageResponse<>(
                 items.stream().map(mapper).toList(),
                 page,

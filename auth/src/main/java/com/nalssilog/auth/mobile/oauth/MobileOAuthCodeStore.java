@@ -95,9 +95,11 @@ public class MobileOAuthCodeStore {
         if ("REDIRECT_MISMATCH".equals(status)) {
             throw new NalssiLogException(AuthErrorCode.AUTH_REDIRECT_URI_INVALID);
         }
+
         if ("PKCE_MISMATCH".equals(status)) {
             throw new NalssiLogException(AuthErrorCode.AUTH_PKCE_VERIFICATION_FAILED);
         }
+
         if (!"OK".equals(status)) {
             throw new NalssiLogException(AuthErrorCode.AUTH_MOBILE_CODE_INVALID);
         }
@@ -112,18 +114,15 @@ public class MobileOAuthCodeStore {
     }
 
     private String key(String rawCode) {
-
         return KEY_PREFIX + SecretFingerprint.sha256(rawCode);
     }
 
     private String blank(String value) {
-
         return value == null ? "" : value;
     }
 
     private String value(List<Object> values, int index) {
         if (values == null || index >= values.size() || values.get(index) == null) {
-
             return "";
         }
 
@@ -131,17 +130,14 @@ public class MobileOAuthCodeStore {
     }
 
     private Long longValue(String value) {
-
         return value == null || value.isBlank() ? null : Long.valueOf(value);
     }
 
     private String nullIfBlank(String value) {
-
         return value == null || value.isBlank() ? null : value;
     }
 
     private <T extends Enum<T>> T enumValue(Class<T> type, String value) {
-
         return value == null || value.isBlank() ? null : Enum.valueOf(type, value);
     }
 }

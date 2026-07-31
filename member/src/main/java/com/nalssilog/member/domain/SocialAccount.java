@@ -59,6 +59,7 @@ public class SocialAccount extends BaseTimeEntity {
     public static SocialAccount register(Member member, Provider provider, String providerUserId,
                                          String providerEmail) {
         SocialAccount account = create(member, provider, providerUserId, providerEmail);
+
         account.lastLoginAt = Instant.now();
 
         return account;
@@ -77,6 +78,7 @@ public class SocialAccount extends BaseTimeEntity {
     private static SocialAccount create(Member member, Provider provider, String providerUserId,
                                         String providerEmail) {
         SocialAccount account = new SocialAccount();
+
         account.member = member;
         account.provider = provider;
         account.providerUserId = providerUserId;

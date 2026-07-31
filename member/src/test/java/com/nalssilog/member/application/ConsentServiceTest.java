@@ -29,6 +29,7 @@ class ConsentServiceTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<MemberConsent>> captor = ArgumentCaptor.forClass(List.class);
+
         verify(repository).saveAll(captor.capture());
         assertThat(captor.getValue())
                 .extracting(MemberConsent::getTermsType)

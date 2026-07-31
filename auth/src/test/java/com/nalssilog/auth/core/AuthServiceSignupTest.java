@@ -68,7 +68,7 @@ class AuthServiceSignupTest {
                 List.of(),
                 new DeviceInfo(
                         "ANDROID · Galaxy · 0.1.0",
-                        "203.0.113.10"));
+                        "client-a.test"));
 
         assertThat(result.tokens().accessToken())
                 .isEqualTo("same-access-token");
@@ -84,7 +84,7 @@ class AuthServiceSignupTest {
     void mobileRefreshFailureDoesNotRequestWebCookieDeletion() {
         DeviceInfo device = new DeviceInfo(
                 "ANDROID · Galaxy · 0.1.0",
-                "203.0.113.10");
+                "client-a.test");
 
         when(tokenService.refresh("refresh-token", device))
                 .thenThrow(new NalssiLogException(
@@ -101,7 +101,6 @@ class AuthServiceSignupTest {
     }
 
     private MemberInfo member() {
-
         return new MemberInfo(
                 7L,
                 "사용자",
@@ -115,7 +114,6 @@ class AuthServiceSignupTest {
     }
 
     private AuthProperties properties() {
-
         return new AuthProperties(
                 new AuthProperties.Jwt(
                         "test-secret-must-be-at-least-thirty-two-bytes",

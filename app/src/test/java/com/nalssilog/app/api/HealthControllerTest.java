@@ -13,6 +13,7 @@ class HealthControllerTest {
     void exposesBuildVersionWithHealthStatus() {
         String expectedVersion = "test-version";
         Properties properties = new Properties();
+
         properties.setProperty("version", expectedVersion);
         HealthController controller =
                 new HealthController(new BuildProperties(properties));

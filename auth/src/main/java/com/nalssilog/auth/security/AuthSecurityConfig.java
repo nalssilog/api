@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -114,18 +115,8 @@ public class AuthSecurityConfig {
                         .failureHandler(oAuth2LoginFailureHandler))
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(apiAuthenticationEntryPoint)
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            if (accessDeniedException instanceof MissingCsrfTokenException) {
-                                writeError(response, HttpServletResponse.SC_FORBIDDEN,
-                                        "CSRF_TOKEN_MISSING", "CSRF 토큰이 없습니다.");
-                            } else if (accessDeniedException instanceof InvalidCsrfTokenException) {
-                                writeError(response, HttpServletResponse.SC_FORBIDDEN,
-                                        "CSRF_TOKEN_INVALID", "CSRF 토큰이 유효하지 않습니다.");
-                            } else {
-                                writeError(response, HttpServletResponse.SC_FORBIDDEN,
-                                        "ACCESS_DENIED", "접근 권한이 없습니다.");
-                            }
-                        }))
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                writeAccessDeniedError(response, accessDeniedException)))
                 .addFilterBefore(jwtAuthenticationFilter, CsrfFilter.class)
                 .addFilterAfter(mobileGuestCredentialFilter, JwtAuthenticationFilter.class)
                 .addFilterBefore(
@@ -181,10 +172,31 @@ public class AuthSecurityConfig {
     }
 
     private boolean isAppleAuthorizationCallback(HttpServletRequest request) {
-
         return HttpMethod.POST.matches(request.getMethod())
                 && AppleAuthorizationResponseFilter.CALLBACK_PATH.equals(
                         request.getRequestURI());
+    }
+
+    private void writeAccessDeniedError(
+            HttpServletResponse response,
+            AccessDeniedException exception
+    ) throws IOException {
+        if (exception instanceof MissingCsrfTokenException) {
+            writeError(response, HttpServletResponse.SC_FORBIDDEN,
+                    "CSRF_TOKEN_MISSING", "CSRF 토큰이 없습니다.");
+
+            return;
+        }
+
+        if (exception instanceof InvalidCsrfTokenException) {
+            writeError(response, HttpServletResponse.SC_FORBIDDEN,
+                    "CSRF_TOKEN_INVALID", "CSRF 토큰이 유효하지 않습니다.");
+
+            return;
+        }
+
+        writeError(response, HttpServletResponse.SC_FORBIDDEN,
+                "ACCESS_DENIED", "접근 권한이 없습니다.");
     }
 
     private void writeError(

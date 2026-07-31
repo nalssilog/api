@@ -69,19 +69,23 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         if (completion.clearLinkIntent()) {
             cookieManager.clearLinkIntentCookie(response);
         }
+
         if (completion.clearLinkTicket()) {
             cookieManager.clearLinkTicketCookie(response);
         }
+
         if (completion.signupTicket() != null) {
             cookieManager.addSignupTicketCookie(
                     response,
                     completion.signupTicket());
         }
+
         if (completion.linkTicket() != null) {
             cookieManager.addLinkTicketCookie(
                     response,
                     completion.linkTicket());
         }
+
         if (completion.tokens() != null) {
             cookieManager.addAuthCookies(
                     response,

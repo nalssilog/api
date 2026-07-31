@@ -74,6 +74,7 @@ class MemberRegistrationServiceTest {
         assertThat(actual).isSameAs(expected);
 
         ArgumentCaptor<Member> memberCaptor = ArgumentCaptor.forClass(Member.class);
+
         verify(memberRepository, times(2)).saveAndFlush(memberCaptor.capture());
         assertThat(memberCaptor.getAllValues())
                 .extracting(Member::getNickname)
@@ -88,6 +89,7 @@ class MemberRegistrationServiceTest {
         MemberInfo expected = new MemberInfo(
                 1L, "인사하는감자123", "", null,
                 AvatarType.PRESET, "avatar-01", MemberStatus.ACTIVE, Provider.NAVER, List.of(Provider.NAVER));
+
         when(nicknameGenerator.generate()).thenReturn("인사하는감자123");
         when(memberRepository.saveAndFlush(any(Member.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -96,6 +98,7 @@ class MemberRegistrationServiceTest {
         service.registerMember(Provider.NAVER, "provider-id", null, null, List.of());
 
         ArgumentCaptor<Member> memberCaptor = ArgumentCaptor.forClass(Member.class);
+
         verify(memberRepository).saveAndFlush(memberCaptor.capture());
         assertThat(memberCaptor.getValue().getName()).isEmpty();
     }
@@ -106,6 +109,7 @@ class MemberRegistrationServiceTest {
         MemberInfo expected = new MemberInfo(
                 1L, "인사하는감자123", "가".repeat(30), null,
                 AvatarType.PRESET, "avatar-01", MemberStatus.ACTIVE, Provider.GOOGLE, List.of(Provider.GOOGLE));
+
         when(nicknameGenerator.generate()).thenReturn("인사하는감자123");
         when(memberRepository.saveAndFlush(any(Member.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -114,6 +118,7 @@ class MemberRegistrationServiceTest {
         service.registerMember(Provider.GOOGLE, "provider-id", null, longName, List.of());
 
         ArgumentCaptor<Member> memberCaptor = ArgumentCaptor.forClass(Member.class);
+
         verify(memberRepository).saveAndFlush(memberCaptor.capture());
         assertThat(memberCaptor.getValue().getName()).isEqualTo("가".repeat(30));
     }

@@ -20,7 +20,6 @@ public class AuthSessionService {
     private final AuthProperties properties;
 
     public List<SessionView> listSessions(Long memberId, String currentSessionId) {
-
         return refreshTokenStore.findSessionsByMember(memberId).stream()
                 .sorted(Comparator.comparing(SessionData::lastActiveAt).reversed())
                 .map(session -> new SessionView(

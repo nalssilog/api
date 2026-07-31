@@ -17,7 +17,6 @@ public record SessionResponse(
 ) {
 
     public static SessionResponse from(SessionView view) {
-
         return new SessionResponse(
                 view.sessionId(),
                 view.deviceName(),

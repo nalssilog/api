@@ -94,7 +94,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 
     static String sanitizeQuery(String query) {
         if (query == null || query.isBlank()) {
-
             return null;
         }
 
@@ -115,7 +114,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         }
 
         if (SENSITIVE_QUERY_PARAMETERS.contains(decodedName.toLowerCase(Locale.ROOT))) {
-
             return rawName + "=***";
         }
 
@@ -133,7 +131,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         Object memberId = request.getAttribute(ACTOR_MEMBER_ID);
 
         if (memberId != null) {
-
             return "member:" + memberId;
         }
 

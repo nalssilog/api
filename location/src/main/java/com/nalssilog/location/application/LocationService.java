@@ -53,7 +53,6 @@ public class LocationService {
     }
 
     public LocationInfo getLocation(Long locationId) {
-
         return locationRepository.getById(locationId);
     }
 
@@ -61,7 +60,6 @@ public class LocationService {
      * 여러 지역 일괄 조회. 없는 id 는 조용히 제외한다(제보 목록의 지역 enrich 배치용).
      */
     public List<LocationInfo> getLocations(List<Long> locationIds) {
-
         return locationRepository.findByIds(locationIds);
     }
 
@@ -103,7 +101,6 @@ public class LocationService {
     }
 
     private static String normalizeLegacyRegionName(String keyword) {
-
         return keyword
                 .replace(FORMER_JEONBUK, CURRENT_JEONBUK)
                 .replace(FORMER_JEONNAM, CURRENT_JEONNAM_GWANGJU)

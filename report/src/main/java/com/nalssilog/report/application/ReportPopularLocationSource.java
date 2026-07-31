@@ -17,7 +17,6 @@ public class ReportPopularLocationSource implements PopularLocationSource {
 
     @Override
     public PopularLocationSnapshotData latestSnapshot() {
-
         return snapshotService.latestOrRefreshAt(Instant.now());
     }
 }

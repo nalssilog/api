@@ -54,6 +54,7 @@ public class MobileGuestCredentialService {
         if (credential.isRevoked()) {
             throw new NalssiLogException(AuthErrorCode.GUEST_CREDENTIAL_INVALID);
         }
+
         if (credential.isExpired(Instant.now())) {
             throw new NalssiLogException(AuthErrorCode.GUEST_CREDENTIAL_EXPIRED);
         }

@@ -60,6 +60,7 @@ public class MemberRegistrationService {
     private MemberInfo registerInTransaction(Provider provider, String providerUserId, String email,
                                              String name, String nickname, List<TermsAgreement> agreedTerms) {
         Member member = memberRepository.saveAndFlush(Member.register(email, name, nickname));
+
         socialAccountRepository.save(SocialAccount.register(member, provider, providerUserId, email));
         consentService.recordOnboardingConsents(member.getId(), agreedTerms);
 

@@ -67,6 +67,7 @@ public class WeatherReport extends BaseTimeEntity {
     public static WeatherReport ofMember(Long locationId, Long memberId, Temperature temperature,
                                          Precipitation precipitation, Sunlight sunlight, String comment) {
         WeatherReport report = base(locationId, temperature, precipitation, sunlight, comment);
+
         report.authorType = ActorType.MEMBER;
         report.authorMemberId = memberId;
 
@@ -76,6 +77,7 @@ public class WeatherReport extends BaseTimeEntity {
     public static WeatherReport ofAnonymous(Long locationId, String anonymousKey, Temperature temperature,
                                             Precipitation precipitation, Sunlight sunlight, String comment) {
         WeatherReport report = base(locationId, temperature, precipitation, sunlight, comment);
+
         report.authorType = ActorType.ANONYMOUS;
         report.authorAnonymousKey = anonymousKey;
 
@@ -91,6 +93,7 @@ public class WeatherReport extends BaseTimeEntity {
     private static WeatherReport base(Long locationId, Temperature temperature, Precipitation precipitation,
                                       Sunlight sunlight, String comment) {
         WeatherReport report = new WeatherReport();
+
         report.locationId = locationId;
         report.temperature = temperature;
         report.precipitation = precipitation;
