@@ -2,6 +2,14 @@
 # JAR 은 아키텍처 무관(JVM 바이트코드)이고 base 는 multi-arch 라, buildx --platform linux/arm64 로 t4g(ARM) 이미지 생성 가능.
 FROM eclipse-temurin:25-jre
 
+ARG APP_VERSION=development
+ARG VCS_REF=unknown
+
+LABEL org.opencontainers.image.title="nalssilog-api" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.source="https://github.com/nalssilog/api"
+
 WORKDIR /app
 
 # 애플리케이션은 특권이 필요 없으므로 고정 UID/GID의 비-root 사용자로 실행한다.

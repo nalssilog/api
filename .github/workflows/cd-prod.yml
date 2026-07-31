@@ -1,6 +1,6 @@
 name: CD (prod)
 
-# main PR CI 통과 후 merge → prod 이미지(ghcr :prod) → prod EC2 배포.
+# main PR CI 통과 후 merge → 버전·커밋 태그 이미지 생성 → 해당 불변 태그로 prod EC2 배포.
 on:
   push:
     branches: [main]
@@ -53,6 +53,14 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
 
+      - name: Resolve application version
+        run: |
+          chmod +x gradlew
+          APP_VERSION=$(./gradlew -q printVersion)
+          SHORT_SHA=${GITHUB_SHA::12}
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "APP_IMAGE_TAG=${APP_VERSION}-${SHORT_SHA}" >> "$GITHUB_ENV"
+
       - name: Build bootJar
         run: |
           chmod +x gradlew
@@ -68,13 +76,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push image (arm64, :prod)
+      - name: Build & push versioned image (arm64)
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           platforms: linux/arm64
           push: true
-          tags: ghcr.io/nalssilog/api:prod
+          tags: |
+            ghcr.io/nalssilog/api:prod
+            ghcr.io/nalssilog/api:${{ env.APP_VERSION }}
+            ghcr.io/nalssilog/api:${{ env.APP_IMAGE_TAG }}
+            ghcr.io/nalssilog/api:sha-${{ github.sha }}
+          build-args: |
+            APP_VERSION=${{ env.APP_VERSION }}
+            VCS_REF=${{ github.sha }}
 
       # GitHub 러너 IP 는 매번 바뀌므로 SSH 전에 SG 22번에 추가, 끝나면 제거(항상). (aws CLI 는 러너에 기본 설치)
       - name: Open SSH (add runner IP to SG)
@@ -110,6 +125,8 @@ jobs:
       - name: Write .env.prod & deploy on EC2
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+          APP_IMAGE_TAG: ${{ env.APP_IMAGE_TAG }}
           GHCR_USERNAME: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DB_HOST: ${{ secrets.PROD_DB_HOST }}
@@ -137,11 +154,11 @@ jobs:
           host: ${{ secrets.EC2_HOST_PROD }}
           username: ${{ secrets.EC2_USER_PROD }}
           key: ${{ secrets.EC2_SSH_KEY_PROD }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,DB_HOST,DB_PORT,DB_NAME,DB_USERNAME,DB_PASSWORD,REDIS_HOST,REDIS_PORT,REDIS_PASSWORD,OAUTH_GOOGLE_CLIENT_ID,OAUTH_GOOGLE_CLIENT_SECRET,OAUTH_KAKAO_CLIENT_ID,OAUTH_KAKAO_CLIENT_SECRET,APPLE_CLIENT_ID,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PRIVATE_KEY_BASE64,PROD_R2_PUBLIC_BASE_URL,PROD_R2_ENDPOINT,PROD_R2_BUCKET,PROD_R2_ACCESS_KEY,PROD_R2_SECRET_KEY
+          envs: APP_VERSION,APP_IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN,DB_HOST,DB_PORT,DB_NAME,DB_USERNAME,DB_PASSWORD,REDIS_HOST,REDIS_PORT,REDIS_PASSWORD,OAUTH_GOOGLE_CLIENT_ID,OAUTH_GOOGLE_CLIENT_SECRET,OAUTH_KAKAO_CLIENT_ID,OAUTH_KAKAO_CLIENT_SECRET,APPLE_CLIENT_ID,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PRIVATE_KEY_BASE64,PROD_R2_PUBLIC_BASE_URL,PROD_R2_ENDPOINT,PROD_R2_BUCKET,PROD_R2_ACCESS_KEY,PROD_R2_SECRET_KEY
           script: |
             set -eu
             cd /home/ubuntu/nalssilog-prod-api
-            for name in GHCR_USERNAME GHCR_TOKEN DB_HOST DB_PORT DB_NAME DB_USERNAME DB_PASSWORD REDIS_HOST REDIS_PORT REDIS_PASSWORD PROD_R2_PUBLIC_BASE_URL PROD_R2_ENDPOINT PROD_R2_BUCKET PROD_R2_ACCESS_KEY PROD_R2_SECRET_KEY; do
+            for name in APP_VERSION APP_IMAGE_TAG GHCR_USERNAME GHCR_TOKEN DB_HOST DB_PORT DB_NAME DB_USERNAME DB_PASSWORD REDIS_HOST REDIS_PORT REDIS_PASSWORD PROD_R2_PUBLIC_BASE_URL PROD_R2_ENDPOINT PROD_R2_BUCKET PROD_R2_ACCESS_KEY PROD_R2_SECRET_KEY; do
               if [ -z "$(printenv "$name")" ]; then
                 echo "Missing required deployment value: $name"
                 exit 1
@@ -164,6 +181,8 @@ jobs:
             export SPRING_PROFILES_ACTIVE=$ACTIVE_PROFILES
             umask 077
             cat > .env.prod <<EOF
+            APP_VERSION=$APP_VERSION
+            APP_IMAGE_TAG=$APP_IMAGE_TAG
             SPRING_PROFILES_ACTIVE=$ACTIVE_PROFILES
             PROD_DB_URL=jdbc:postgresql://$DB_HOST:$DB_PORT/$DB_NAME?sslmode=require
             PROD_DB_USERNAME=$DB_USERNAME
@@ -190,8 +209,8 @@ jobs:
             sudo chmod 0755 logs
             echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
             trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
-            docker compose -f compose-prod.yml pull
-            docker compose -f compose-prod.yml up -d
+            docker compose --env-file .env.prod -f compose-prod.yml pull
+            docker compose --env-file .env.prod -f compose-prod.yml up -d
             healthy=false
             for attempt in $(seq 1 30); do
               if curl --fail --silent --max-time 3 http://127.0.0.1:8081/api/health >/dev/null; then
