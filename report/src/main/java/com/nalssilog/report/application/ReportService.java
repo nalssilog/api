@@ -93,7 +93,7 @@ public class ReportService {
                         .toList());
 
         List<ReportResponse> items = page.stream()
-                .map(data -> ReportResponse.of(data, location, authors.get(data.authorMemberId()),
+                .map(data -> ReportResponse.of(data, location, resolveAuthor(data, authors),
                         counts.getOrDefault(data.id(), 0L),
                         thanked.contains(data.id()),
                         isAuthor(data, ownershipActors),
@@ -217,6 +217,17 @@ public class ReportService {
         }
 
         return memberClient.findActiveAuthor(data.authorMemberId()).orElse(null);
+    }
+
+    private AuthorInfo resolveAuthor(
+            ReportData data,
+            Map<Long, AuthorInfo> authors
+    ) {
+        if (data.authorType() != ActorType.MEMBER) {
+            return null;
+        }
+
+        return authors.get(data.authorMemberId());
     }
 
     private boolean isAuthor(WeatherReport report, ReportActor actor) {

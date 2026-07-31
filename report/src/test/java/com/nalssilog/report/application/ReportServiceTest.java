@@ -139,6 +139,7 @@ class ReportServiceTest {
         when(locationClient.getLocation(1L)).thenReturn(location());
         when(thanksRepository.countByReportIds(List.of(10L))).thenReturn(Map.of());
         when(thanksRepository.thankedReportIds(List.of(10L), ReportActor.member(1L))).thenReturn(Set.of());
+        when(memberClient.findActiveAuthors(List.of())).thenReturn(Map.of());
 
         CursorPage<ReportResponse> response = service.list(
                 1L,
@@ -148,8 +149,10 @@ class ReportServiceTest {
         );
 
         assertThat(response.items()).singleElement()
-                .extracting(ReportResponse::isMine)
-                .isEqualTo(true);
+                .satisfies(item -> {
+                    assertThat(item.isMine()).isTrue();
+                    assertThat(item.author().type()).isEqualTo(ActorType.ANONYMOUS);
+                });
     }
 
     @Test
