@@ -28,6 +28,7 @@ public class KakaoMapClient {
     @Autowired
     public KakaoMapClient(KakaoMapProperties properties) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+
         requestFactory.setConnectTimeout(properties.connectTimeout());
         requestFactory.setReadTimeout(properties.readTimeout());
 
@@ -101,6 +102,7 @@ public class KakaoMapClient {
 
         KakaoRegion toRegion() {
             String legalDongName = ri == null || ri.isBlank() ? dong : dong + " " + ri;
+
             return new KakaoRegion(
                     code,
                     sido,

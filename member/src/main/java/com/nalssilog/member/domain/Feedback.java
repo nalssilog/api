@@ -35,6 +35,7 @@ public class Feedback extends BaseTimeEntity {
 
     public static Feedback create(Long authorMemberId, String content) {
         Feedback feedback = new Feedback();
+
         feedback.authorMemberId = authorMemberId;
         feedback.content = content;
 

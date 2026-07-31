@@ -22,7 +22,12 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "social_account", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_social_account_provider_user", columnNames = {"provider", "provider_user_id"})
+        @UniqueConstraint(
+                name = "uk_social_account_provider_user",
+                columnNames = {"provider", "provider_user_id"}),
+        @UniqueConstraint(
+                name = "uk_social_account_member_provider",
+                columnNames = {"member_id", "provider"})
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -54,19 +59,26 @@ public class SocialAccount extends BaseTimeEntity {
     public static SocialAccount register(Member member, Provider provider, String providerUserId,
                                          String providerEmail) {
         SocialAccount account = create(member, provider, providerUserId, providerEmail);
+
         account.lastLoginAt = Instant.now();
 
         return account;
     }
 
     /** 추가 연동은 로그인이 아니므로 실제로 이 제공자로 로그인하기 전까지 로그인 시각을 비워 둔다. */
-    public static SocialAccount link(Member member, Provider provider, String providerUserId, String providerEmail) {
+    public static SocialAccount link(
+            Member member,
+            Provider provider,
+            String providerUserId,
+            String providerEmail
+    ) {
         return create(member, provider, providerUserId, providerEmail);
     }
 
     private static SocialAccount create(Member member, Provider provider, String providerUserId,
                                         String providerEmail) {
         SocialAccount account = new SocialAccount();
+
         account.member = member;
         account.provider = provider;
         account.providerUserId = providerUserId;

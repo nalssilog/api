@@ -2,6 +2,12 @@ plugins {
     id 'org.springframework.boot'
 }
 
+springBoot {
+    buildInfo {
+        excludes = ['time']
+    }
+}
+
 dependencies {
     implementation project(':common')
     implementation project(':auth')

@@ -1,5 +1,6 @@
 package com.nalssilog.report.config;
 
+import com.nalssilog.common.security.VerifiedRequestCredentials;
 import com.nalssilog.report.application.dto.ReportActor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,12 +24,24 @@ public class ReportActorResolver {
             return ReportActor.member(memberId);
         }
 
+        var mobileGuest = VerifiedRequestCredentials.guestAnonymousKey(request);
+
+        if (mobileGuest.isPresent()) {
+            return ReportActor.anonymous(mobileGuest.get());
+        }
+
         return ReportActor.anonymous(anonymousIdManager.getOrIssue(request, response));
     }
 
     public ReportActor resolveForRead(Long memberId, HttpServletRequest request) {
         if (memberId != null) {
             return ReportActor.member(memberId);
+        }
+
+        var mobileGuest = VerifiedRequestCredentials.guestAnonymousKey(request);
+
+        if (mobileGuest.isPresent()) {
+            return ReportActor.anonymous(mobileGuest.get());
         }
 
         return anonymousIdManager.read(request)
@@ -46,9 +59,16 @@ public class ReportActorResolver {
         if (memberId != null) {
             actors.add(ReportActor.member(memberId));
         }
-        anonymousIdManager.read(request)
+
+        VerifiedRequestCredentials.guestAnonymousKey(request)
                 .map(ReportActor::anonymous)
                 .ifPresent(actors::add);
+
+        if (!VerifiedRequestCredentials.hasNonCookieCredential(request)) {
+            anonymousIdManager.read(request)
+                    .map(ReportActor::anonymous)
+                    .ifPresent(actors::add);
+        }
 
         return List.copyOf(actors);
     }

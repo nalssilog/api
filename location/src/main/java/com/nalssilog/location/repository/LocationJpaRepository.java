@@ -1,7 +1,6 @@
 package com.nalssilog.location.repository;
 
 import com.nalssilog.location.domain.Location;
-import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,8 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * 키워드 검색과 원자적 등록은 {@link LocationRepository}가 담당한다.
  */
 public interface LocationJpaRepository extends JpaRepository<Location, Long> {
-
-    List<Location> findByAdminCodeIn(List<String> adminCodes);
 
     Optional<Location> findByAdminCode(String adminCode);
 }

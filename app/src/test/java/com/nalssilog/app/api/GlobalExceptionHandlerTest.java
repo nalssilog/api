@@ -2,10 +2,10 @@ package com.nalssilog.app.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.nalssilog.auth.config.AuthCookieManager;
 import com.nalssilog.auth.config.AuthProperties;
-import com.nalssilog.auth.domain.AuthErrorCode;
-import com.nalssilog.auth.domain.RefreshRejectedException;
+import com.nalssilog.auth.core.AuthErrorCode;
+import com.nalssilog.auth.core.RefreshRejectedException;
+import com.nalssilog.auth.web.AuthCookieManager;
 import com.nalssilog.common.exception.ErrorResponse;
 import com.nalssilog.common.exception.NalssiLogException;
 import java.time.Duration;

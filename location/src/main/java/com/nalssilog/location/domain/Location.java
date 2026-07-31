@@ -49,6 +49,7 @@ public class Location extends BaseTimeEntity {
     public static Location of(String adminCode, String sido, String sigungu, String dong,
                               Double latitude, Double longitude) {
         Location location = new Location();
+
         location.adminCode = adminCode;
         location.sido = sido;
         location.sigungu = sigungu;

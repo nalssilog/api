@@ -28,7 +28,7 @@ class FeedbackRateLimiterTest {
                     5,
                     Duration.ofMinutes(10),
                     "test-feedback-hmac-secret",
-                    List.of("127.0.0.0/8")));
+                    List.of()));
 
     @Test
     void rejectsSubmissionAboveConfiguredLimit() {
@@ -37,7 +37,7 @@ class FeedbackRateLimiterTest {
 
         NalssiLogException exception = catchThrowableOfType(
                 NalssiLogException.class,
-                () -> limiter.check(null, "203.0.113.10"));
+                () -> limiter.check(null, "client-a.test"));
 
         assertThat(exception.getErrorCode()).isEqualTo(MemberErrorCode.FEEDBACK_RATE_LIMITED);
     }
@@ -47,18 +47,18 @@ class FeedbackRateLimiterTest {
         when(redisTemplate.execute(any(RedisScript.class), anyList(), any()))
                 .thenThrow(new RedisConnectionFailureException("test"));
 
-        assertThatCode(() -> limiter.check(null, "203.0.113.10"))
+        assertThatCode(() -> limiter.check(null, "client-a.test"))
                 .doesNotThrowAnyException();
     }
 
     @Test
     void guestActorDoesNotExposeRawAddress() {
-        String actor = limiter.actor(null, "203.0.113.10");
+        String actor = limiter.actor(null, "client-a.test");
 
         assertThat(actor)
                 .startsWith("guest:")
-                .doesNotContain("203.0.113.10");
-        assertThat(limiter.actor(7L, "203.0.113.10")).isEqualTo("member:7");
+                .doesNotContain("client-a.test");
+        assertThat(limiter.actor(7L, "client-a.test")).isEqualTo("member:7");
     }
 
     @Test
@@ -69,9 +69,9 @@ class FeedbackRateLimiterTest {
                         5,
                         Duration.ofMinutes(10),
                         "different-feedback-hmac-secret",
-                        List.of("127.0.0.0/8")));
+                        List.of()));
 
-        assertThat(otherSecretLimiter.actor(null, "203.0.113.10"))
-                .isNotEqualTo(limiter.actor(null, "203.0.113.10"));
+        assertThat(otherSecretLimiter.actor(null, "client-a.test"))
+                .isNotEqualTo(limiter.actor(null, "client-a.test"));
     }
 }

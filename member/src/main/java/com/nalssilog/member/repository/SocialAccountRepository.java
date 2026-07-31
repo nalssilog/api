@@ -1,8 +1,12 @@
 package com.nalssilog.member.repository;
 
+import static com.nalssilog.member.domain.QMember.member;
+import static com.nalssilog.member.domain.QSocialAccount.socialAccount;
+
 import com.nalssilog.member.application.dto.SocialAccountInfo;
 import com.nalssilog.member.domain.Provider;
 import com.nalssilog.member.domain.SocialAccount;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +21,7 @@ import org.springframework.stereotype.Repository;
 public class SocialAccountRepository {
 
     private final SocialAccountJpaRepository socialAccountJpaRepository;
+    private final JPAQueryFactory queryFactory;
 
     // ===== 읽기 =====
 
@@ -33,7 +38,14 @@ public class SocialAccountRepository {
     // ===== 쓰기(관리 엔티티) =====
 
     public Optional<SocialAccount> findByProviderAndProviderUserId(Provider provider, String providerUserId) {
-        return socialAccountJpaRepository.findByProviderAndProviderUserId(provider, providerUserId);
+        return Optional.ofNullable(queryFactory
+                .selectFrom(socialAccount)
+                .join(socialAccount.member, member)
+                .fetchJoin()
+                .where(
+                        socialAccount.provider.eq(provider),
+                        socialAccount.providerUserId.eq(providerUserId))
+                .fetchOne());
     }
 
     public Optional<SocialAccount> findByMemberIdAndProvider(Long memberId, Provider provider) {
@@ -42,6 +54,10 @@ public class SocialAccountRepository {
 
     public SocialAccount save(SocialAccount socialAccount) {
         return socialAccountJpaRepository.save(socialAccount);
+    }
+
+    public SocialAccount saveAndFlush(SocialAccount socialAccount) {
+        return socialAccountJpaRepository.saveAndFlush(socialAccount);
     }
 
     public void delete(SocialAccount socialAccount) {

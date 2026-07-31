@@ -35,6 +35,7 @@ public class MemberProfileService {
     @Transactional
     public MemberInfo changeName(Long memberId, String name) {
         Member member = memberRepository.getMember(memberId);
+
         member.changeName(name.strip());
 
         return memberRepository.getMemberInfo(memberId);

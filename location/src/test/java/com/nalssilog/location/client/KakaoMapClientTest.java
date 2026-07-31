@@ -29,6 +29,7 @@ class KakaoMapClientTest {
         RestClient.Builder builder = RestClient.builder()
                 .baseUrl("https://dapi.kakao.com")
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "KakaoAK test-rest-api-key");
+
         server = MockRestServiceServer.bindTo(builder).build();
         client = new KakaoMapClient(builder.build(), REVERSE_GEOCODE_PATH);
     }

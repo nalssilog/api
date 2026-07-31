@@ -1,19 +1,23 @@
 package com.nalssilog.app.api;
 
-import com.nalssilog.auth.config.AuthCookieManager;
-import com.nalssilog.auth.domain.RefreshRejectedException;
+import com.nalssilog.auth.core.RefreshRejectedException;
+import com.nalssilog.auth.web.AuthCookieManager;
 import com.nalssilog.common.exception.ErrorCode;
 import com.nalssilog.common.exception.ErrorResponse;
 import com.nalssilog.common.exception.NalssiLogException;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
@@ -33,6 +37,7 @@ public class GlobalExceptionHandler {
         }
 
         ErrorCode errorCode = exception.getErrorCode();
+
         response.setStatus(errorCode.getStatus().value());
         log.warn("NalssiLogException [{}] {} (status={})",
                 errorCode.getCode(), exception.getMessage(), errorCode.getStatus().value());
@@ -49,6 +54,19 @@ public class GlobalExceptionHandler {
                 .orElse("잘못된 요청입니다.");
 
         return new ErrorResponse("VALIDATION_ERROR", message);
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler({
+            ConstraintViolationException.class,
+            HandlerMethodValidationException.class,
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class
+    })
+    public ErrorResponse handleRequestParameterValidation(Exception exception) {
+        return new ErrorResponse(
+                "VALIDATION_ERROR",
+                "요청 파라미터가 올바르지 않습니다.");
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)

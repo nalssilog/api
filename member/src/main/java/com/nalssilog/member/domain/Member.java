@@ -66,6 +66,7 @@ public class Member extends BaseTimeEntity {
     /** 가입 확정 시 ACTIVE 회원을 처음 생성(가입 전엔 signup 티켓에만 존재). */
     public static Member register(String email, String name, String nickname) {
         Member member = new Member();
+
         member.email = email;
         member.name = name;
         member.nickname = nickname;
@@ -98,6 +99,7 @@ public class Member extends BaseTimeEntity {
         if (this.status == MemberStatus.WITHDRAWN) {
             throw new NalssiLogException(MemberErrorCode.ALREADY_WITHDRAWN);
         }
+
         this.status = MemberStatus.WITHDRAWN;
         this.withdrawnAt = Instant.now();
         this.email = null;

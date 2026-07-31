@@ -15,6 +15,7 @@ class ReportImageCleanupListenerTest {
     void continuesCleanupWhenDeletingOneImageFails() {
         ImageStorageClient imageStorageClient = mock(ImageStorageClient.class);
         ReportImageCleanupListener listener = new ReportImageCleanupListener(imageStorageClient);
+
         doThrow(new IllegalStateException("R2 unavailable"))
                 .when(imageStorageClient).delete("reports/one.jpg");
 

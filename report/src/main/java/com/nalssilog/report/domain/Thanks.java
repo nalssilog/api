@@ -44,6 +44,7 @@ public class Thanks extends BaseTimeEntity {
 
     public static Thanks create(Long reportId, ActorType actorType, String actorKey) {
         Thanks thanks = new Thanks();
+
         thanks.reportId = reportId;
         thanks.actorType = actorType;
         thanks.actorKey = actorKey;

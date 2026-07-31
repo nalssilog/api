@@ -1,49 +1,18 @@
 package com.nalssilog.location.repository;
 
-import static com.nalssilog.location.domain.QLocationFavorite.locationFavorite;
-
 import com.nalssilog.location.domain.LocationFavorite;
-import com.querydsl.jpa.impl.JPAQueryFactory;
-import java.util.List;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
- * 서비스 호출용 LocationFavorite 저장소.
- * 단순 조회는 Spring Data JPA에 위임하고, 인기 지역 집계는 QueryDSL로 처리한다.
+ * 단순 CRUD와 메서드 이름으로 표현 가능한 조회만 담당한다.
  */
-@Repository
-@RequiredArgsConstructor
-public class LocationFavoriteRepository {
+public interface LocationFavoriteRepository extends JpaRepository<LocationFavorite, Long> {
 
-    private final LocationFavoriteJpaRepository locationFavoriteJpaRepository;
-    private final JPAQueryFactory queryFactory;
+    boolean existsByMemberIdAndLocationId(Long memberId, Long locationId);
 
-    public boolean exists(Long memberId, Long locationId) {
-        return locationFavoriteJpaRepository.existsByMemberIdAndLocationId(memberId, locationId);
-    }
+    long deleteByMemberIdAndLocationId(Long memberId, Long locationId);
 
-    public void save(LocationFavorite favorite) {
-        locationFavoriteJpaRepository.save(favorite);
-    }
-
-    public void delete(Long memberId, Long locationId) {
-        locationFavoriteJpaRepository.deleteByMemberIdAndLocationId(memberId, locationId);
-    }
-
-    public List<Long> findFavoriteLocationIds(Long memberId) {
-        return locationFavoriteJpaRepository.findAllByMemberIdOrderByCreatedAtDesc(memberId).stream()
-                .map(LocationFavorite::getLocationId)
-                .toList();
-    }
-
-    public List<Long> findPopularLocationIds(int size) {
-        return queryFactory
-                .select(locationFavorite.locationId)
-                .from(locationFavorite)
-                .groupBy(locationFavorite.locationId)
-                .orderBy(locationFavorite.id.count().desc())
-                .limit(size)
-                .fetch();
-    }
+    Page<LocationFavorite> findAllByMemberIdOrderByCreatedAtDescIdDesc(Long memberId, Pageable pageable);
 }

@@ -24,32 +24,32 @@ import jakarta.servlet.http.HttpServletResponse;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class TraceIdFilter extends OncePerRequestFilter {
 
-	public static final String TRACE_ID = "traceId";
-	private static final String TRACE_ID_HEADER = "X-Trace-Id";
+    public static final String TRACE_ID = "traceId";
+    private static final String TRACE_ID_HEADER = "X-Trace-Id";
 
-	@Override
-	protected void doFilterInternal(HttpServletRequest request,
-		HttpServletResponse response,
-		FilterChain filterChain) throws ServletException, IOException {
-		String traceId = resolveTraceId(request);
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+        HttpServletResponse response,
+        FilterChain filterChain) throws ServletException, IOException {
+        String traceId = resolveTraceId(request);
 
-		MDC.put(TRACE_ID, traceId);
-		response.setHeader(TRACE_ID_HEADER, traceId);
+        MDC.put(TRACE_ID, traceId);
+        response.setHeader(TRACE_ID_HEADER, traceId);
 
-		try {
-			filterChain.doFilter(request, response);
-		} finally {
-			MDC.remove(TRACE_ID);
-		}
-	}
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            MDC.remove(TRACE_ID);
+        }
+    }
 
-	private String resolveTraceId(HttpServletRequest request) {
-		String inbound = request.getHeader(TRACE_ID_HEADER);
+    private String resolveTraceId(HttpServletRequest request) {
+        String inbound = request.getHeader(TRACE_ID_HEADER);
 
-		if (StringUtils.hasText(inbound)) {
-			return inbound;
-		}
+        if (StringUtils.hasText(inbound)) {
+            return inbound;
+        }
 
-		return UUID.randomUUID().toString().substring(0, 8);
-	}
+        return UUID.randomUUID().toString().substring(0, 8);
+    }
 }

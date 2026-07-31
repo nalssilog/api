@@ -2,10 +2,12 @@ package com.nalssilog.member.repository;
 
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.member.application.dto.MemberInfo;
+import com.nalssilog.member.application.dto.MemberSummary;
 import com.nalssilog.member.domain.Member;
 import com.nalssilog.member.domain.MemberErrorCode;
 import com.nalssilog.member.domain.MemberStatus;
 import com.nalssilog.member.domain.SocialAccount;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,16 @@ public class MemberRepository {
     public Optional<MemberInfo> findMemberInfoByEmail(String email) {
         return memberJpaRepository.findFirstByEmailAndStatusNot(email, MemberStatus.WITHDRAWN)
                 .map(this::toInfo);
+    }
+
+    public List<MemberSummary> findSummariesByIds(Collection<Long> memberIds) {
+        if (memberIds.isEmpty()) {
+            return List.of();
+        }
+
+        return memberJpaRepository.findAllById(memberIds).stream()
+                .map(MemberSummary::of)
+                .toList();
     }
 
     public boolean existsByNickname(String nickname) {

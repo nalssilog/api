@@ -22,12 +22,14 @@ class FeedbackServiceTest {
     @Test
     void anonymousFeedbackIsRateCheckedAndStoredWithoutMemberId() {
         FeedbackInfo saved = new FeedbackInfo(1L, null, "좋아요", Instant.now());
+
         when(repository.save(org.mockito.ArgumentMatchers.any(Feedback.class))).thenReturn(saved);
 
-        FeedbackInfo result = service.submit(null, "203.0.113.10", "  좋아요  ");
+        FeedbackInfo result = service.submit(null, "client-a.test", "  좋아요  ");
 
         ArgumentCaptor<Feedback> captor = ArgumentCaptor.forClass(Feedback.class);
-        verify(rateLimiter).check(null, "203.0.113.10");
+
+        verify(rateLimiter).check(null, "client-a.test");
         verify(repository).save(captor.capture());
         assertThat(captor.getValue().getAuthorMemberId()).isNull();
         assertThat(captor.getValue().getContent()).isEqualTo("좋아요");

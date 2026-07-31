@@ -1,17 +1,21 @@
 package com.nalssilog.location.application;
 
 import com.nalssilog.common.exception.NalssiLogException;
+import com.nalssilog.common.response.PageResponse;
 import com.nalssilog.location.application.dto.LocationInfo;
+import com.nalssilog.location.application.dto.PopularLocationSnapshotData;
+import com.nalssilog.location.application.dto.PopularLocationSnapshotInfo;
 import com.nalssilog.location.client.KakaoMapClient;
 import com.nalssilog.location.client.KakaoRegion;
-import com.nalssilog.location.config.LocationProperties;
 import com.nalssilog.location.domain.LocationErrorCode;
 import com.nalssilog.location.repository.LocationRepository;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,20 +28,28 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class LocationService {
 
-    private static final int POPULAR_SIZE = 5;
+    private static final int PAGE_SIZE = 5;
     private static final String FORMER_JEONBUK = "전라북도";
     private static final String CURRENT_JEONBUK = "전북특별자치도";
     private static final String FORMER_JEONNAM = "전라남도";
     private static final String FORMER_GWANGJU = "광주광역시";
     private static final String CURRENT_JEONNAM_GWANGJU = "전남광주통합특별시";
+    private static final String FORMER_JEOLLA = "전라도";
+    private static final String FORMER_JEOLLA_SHORT = "전라";
+    private static final String CURRENT_JEOLLA_PREFIX = "전";
 
     private final LocationRepository locationRepository;
     private final PopularLocationSource popularLocationSource;
-    private final LocationProperties properties;
     private final KakaoMapClient kakaoMapClient;
 
-    public List<LocationInfo> search(String keyword) {
-        return locationRepository.searchByKeyword(normalizeLegacyRegionName(keyword.strip()));
+    public PageResponse<LocationInfo> search(String keyword, int page) {
+        String normalizedKeyword = normalizeLegacyRegionName(
+                keyword.strip().replaceAll("\\s+", " "));
+        Page<LocationInfo> result = locationRepository.searchByKeyword(
+                normalizedKeyword,
+                PageRequest.of(page, PAGE_SIZE));
+
+        return PageResponse.from(result);
     }
 
     public LocationInfo getLocation(Long locationId) {
@@ -55,33 +67,30 @@ public class LocationService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public LocationInfo reverseGeocode(double latitude, double longitude) {
         validateCoordinates(latitude, longitude);
+
         KakaoRegion region = kakaoMapClient.reverseGeocode(latitude, longitude);
 
         return locationRepository.findOrCreate(region);
     }
 
-    /** 인기 동네 top5. 최근 제보 지역을 우선하고 부족한 자리는 설정된 대표 지역으로 중복 없이 채운다. */
-    public List<LocationInfo> getPopular() {
-        List<Long> popularIds = popularLocationSource.topLocationIds(POPULAR_SIZE);
-        List<LocationInfo> result = new ArrayList<>(locationRepository.findByIds(popularIds));
+    public PopularLocationSnapshotInfo getPopular() {
+        PopularLocationSnapshotData snapshot = popularLocationSource.latestSnapshot();
+        List<Long> locationIds = snapshot.rankings().stream()
+                .map(PopularLocationSnapshotData.Rank::locationId)
+                .toList();
+        Map<Long, LocationInfo> locationsById = locationRepository.findByIds(locationIds).stream()
+                .collect(Collectors.toMap(LocationInfo::id, Function.identity()));
+        List<PopularLocationSnapshotInfo.Item> items = snapshot.rankings().stream()
+                .map(rank -> popularItem(rank, locationsById))
+                .toList();
 
-        if (result.size() >= POPULAR_SIZE) {
-            return List.copyOf(result.subList(0, POPULAR_SIZE));
-        }
-
-        Set<Long> addedIds = new HashSet<>();
-        result.forEach(location -> addedIds.add(location.id()));
-
-        for (LocationInfo featured : locationRepository.findByAdminCodes(properties.featuredAdminCodes())) {
-            if (addedIds.add(featured.id())) {
-                result.add(featured);
-            }
-            if (result.size() == POPULAR_SIZE) {
-                break;
-            }
-        }
-
-        return List.copyOf(result);
+        return new PopularLocationSnapshotInfo(
+                snapshot.snapshotId(),
+                snapshot.calculatedAt(),
+                snapshot.windowStartedAt(),
+                snapshot.windowEndedAt(),
+                snapshot.algorithmVersion(),
+                items);
     }
 
     private static void validateCoordinates(double latitude, double longitude) {
@@ -95,6 +104,30 @@ public class LocationService {
         return keyword
                 .replace(FORMER_JEONBUK, CURRENT_JEONBUK)
                 .replace(FORMER_JEONNAM, CURRENT_JEONNAM_GWANGJU)
-                .replace(FORMER_GWANGJU, CURRENT_JEONNAM_GWANGJU);
+                .replace(FORMER_GWANGJU, CURRENT_JEONNAM_GWANGJU)
+                .replace(FORMER_JEOLLA, CURRENT_JEOLLA_PREFIX)
+                .replace(FORMER_JEOLLA_SHORT, CURRENT_JEOLLA_PREFIX);
+    }
+
+    private static PopularLocationSnapshotInfo.Item popularItem(
+            PopularLocationSnapshotData.Rank rank,
+            Map<Long, LocationInfo> locationsById
+    ) {
+        LocationInfo location = locationsById.get(rank.locationId());
+
+        if (location == null) {
+            throw new IllegalStateException(
+                    "popular snapshot references missing location: " + rank.locationId());
+        }
+
+        return new PopularLocationSnapshotInfo.Item(
+                rank.rank(),
+                rank.previousRank(),
+                rank.rankChange(),
+                rank.movement(),
+                rank.uniqueReporterCount(),
+                rank.reportCount(),
+                rank.latestReportAt(),
+                location);
     }
 }
