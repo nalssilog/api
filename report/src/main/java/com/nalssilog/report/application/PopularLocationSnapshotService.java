@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nalssilog.location.application.dto.PopularLocationSnapshotData;
@@ -54,7 +55,7 @@ public class PopularLocationSnapshotService {
         return PopularRankMovement.SAME;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public PopularLocationSnapshotData latestOrRefreshAt(Instant now) {
         PopularLocationSnapshot latest = snapshotRepository
             .findFirstByOrderByCalculatedAtDescIdDesc()
@@ -77,7 +78,7 @@ public class PopularLocationSnapshotService {
         return createSnapshot(now, latest);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public PopularLocationSnapshotData captureAt(Instant calculatedAt) {
         lockRepository.acquire();
 

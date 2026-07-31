@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
 
 @SuppressWarnings("java:S5960") // 표준 src/test 소스의 AssertJ 검증을 운영 코드 assertion으로 오인하는 경고.
 class LocationServiceTest {
@@ -33,6 +35,19 @@ class LocationServiceTest {
             popularLocationSource,
             kakaoMapClient
     );
+
+    @Test
+    void popularLookupSuspendsTheClassLevelReadOnlyTransaction() throws NoSuchMethodException {
+        AnnotationTransactionAttributeSource attributeSource =
+                new AnnotationTransactionAttributeSource();
+        var transactionAttribute = attributeSource.getTransactionAttribute(
+                LocationService.class.getMethod("getPopular"),
+                LocationService.class);
+
+        assertThat(transactionAttribute).isNotNull();
+        assertThat(transactionAttribute.getPropagationBehavior())
+                .isEqualTo(TransactionDefinition.PROPAGATION_NOT_SUPPORTED);
+    }
 
     @Test
     void resolvesKakaoRegionAndReturnsPersistedLocation() {

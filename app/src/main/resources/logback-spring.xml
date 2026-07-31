@@ -46,8 +46,18 @@
 
     <!-- prod: JSON 구조화 로그(콘솔 + 롤링 파일). MDC(traceId + 액세스 필드 method/path/status/durationMs/actor)를 그대로 필드화 -->
     <springProfile name="prod">
+        <logger name="org.hibernate.orm.jdbc.error" level="ERROR"/>
+
         <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                    <maxDepthPerThrowable>20</maxDepthPerThrowable>
+                    <maxLength>4096</maxLength>
+                    <shortenedClassNameLength>40</shortenedClassNameLength>
+                    <rootCauseFirst>true</rootCauseFirst>
+                    <omitCommonFrames>true</omitCommonFrames>
+                </throwableConverter>
+            </encoder>
         </appender>
 
         <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -58,7 +68,15 @@
                 <maxHistory>14</maxHistory>
                 <totalSizeCap>1GB</totalSizeCap>
             </rollingPolicy>
-            <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                    <maxDepthPerThrowable>20</maxDepthPerThrowable>
+                    <maxLength>4096</maxLength>
+                    <shortenedClassNameLength>40</shortenedClassNameLength>
+                    <rootCauseFirst>true</rootCauseFirst>
+                    <omitCommonFrames>true</omitCommonFrames>
+                </throwableConverter>
+            </encoder>
         </appender>
 
         <root level="INFO">
