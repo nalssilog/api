@@ -4,6 +4,7 @@ import com.nalssilog.auth.core.AuthService.MeState;
 import com.nalssilog.member.application.dto.MemberInfo;
 import com.nalssilog.member.domain.AvatarType;
 import com.nalssilog.member.domain.Provider;
+import com.nalssilog.member.domain.MemberRole;
 import java.util.List;
 
 /**
@@ -17,7 +18,7 @@ public record MeResponse(
         PendingAuth pendingAuth
 ) {
 
-    public record User(String id, String nickname, Avatar avatar) {
+    public record User(String id, String nickname, Avatar avatar, MemberRole role) {
     }
 
     public record Avatar(AvatarType type, String value) {
@@ -32,7 +33,7 @@ public record MeResponse(
 
     public static MeResponse authenticated(MemberInfo member) {
         User user = new User(String.valueOf(member.id()), member.nickname(),
-                new Avatar(member.avatarType(), member.avatarValue()));
+                new Avatar(member.avatarType(), member.avatarValue()), member.role());
 
         return new MeResponse(true, AuthResult.SUCCESS, user, null);
     }

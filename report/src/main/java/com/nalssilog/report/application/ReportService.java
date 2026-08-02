@@ -2,6 +2,7 @@ package com.nalssilog.report.application;
 
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.common.response.CursorPage;
+import com.nalssilog.member.application.dto.TermsAgreement;
 import com.nalssilog.report.api.dto.ReportResponse;
 import com.nalssilog.report.api.dto.ThanksResponse;
 import com.nalssilog.report.api.dto.WeatherStatsResponse;
@@ -46,9 +47,13 @@ public class ReportService {
     private final LocationClient locationClient;
     private final ImageStorageClient imageStorageClient;
     private final ApplicationEventPublisher eventPublisher;
+    private final ReportConsentPolicy reportConsentPolicy;
 
     @Transactional
     public ReportResponse create(ReportActor actor, CreateReportCommand command) {
+        List<TermsAgreement> reportConsents = actor.type() == ActorType.ANONYMOUS
+                ? reportConsentPolicy.validate(command.agreedTerms())
+                : List.of();
         LocationSummary location = locationClient.getLocation(command.locationId());
 
         imageStorageClient.validateImageCount(command.imageKeys().size());
@@ -62,6 +67,8 @@ public class ReportService {
                 command.temperature(), command.precipitation(), command.sunlight(), command.comment());
 
         report.addImages(command.imageKeys());
+        Instant agreedAt = Instant.now();
+        reportConsents.forEach(consent -> report.addConsent(consent.type(), consent.version(), agreedAt));
         ReportData data = reportRepository.save(report);
 
         return ReportResponse.of(data, location, resolveAuthor(data), 0L, false, true, resolveImageUrls(data));
@@ -73,7 +80,8 @@ public class ReportService {
         Instant cursorTime = decoded == null ? null : decoded.createdAt();
         Long cursorId = decoded == null ? null : decoded.id();
 
-        List<ReportData> fetched = reportRepository.findPage(locationId, cursorTime, cursorId, PAGE_SIZE + 1);
+        List<ReportData> fetched = reportRepository.findPage(
+                locationId, cursorTime, cursorId, viewer, PAGE_SIZE + 1);
         boolean hasNext = fetched.size() > PAGE_SIZE;
         List<ReportData> page = hasNext ? fetched.subList(0, PAGE_SIZE) : fetched;
 
@@ -116,7 +124,8 @@ public class ReportService {
         Instant cursorTime = decoded == null ? null : decoded.createdAt();
         Long cursorId = decoded == null ? null : decoded.id();
 
-        List<ReportData> fetched = reportRepository.findMemberPage(memberId, cursorTime, cursorId, PAGE_SIZE + 1);
+        List<ReportData> fetched = reportRepository.findMemberPage(
+                memberId, cursorTime, cursorId, viewer, PAGE_SIZE + 1);
         boolean hasNext = fetched.size() > PAGE_SIZE;
         List<ReportData> page = hasNext ? fetched.subList(0, PAGE_SIZE) : fetched;
 
@@ -157,7 +166,7 @@ public class ReportService {
     }
 
     public ReportResponse get(Long reportId, ReportActor viewer, List<ReportActor> ownershipActors) {
-        ReportData data = reportRepository.getReport(reportId);
+        ReportData data = reportRepository.getReport(reportId, viewer);
         LocationSummary location = locationClient.getLocation(data.locationId());
         long thanksCount = thanksRepository.count(reportId);
         boolean isThanked = viewer != null && thanksRepository.isThanked(reportId, viewer);
@@ -174,7 +183,7 @@ public class ReportService {
 
     @Transactional
     public ThanksResponse addThanks(Long reportId, ReportActor actor) {
-        reportRepository.getReport(reportId);
+        reportRepository.getReport(reportId, actor);
         thanksRepository.add(reportId, actor);
 
         return new ThanksResponse(thanksRepository.count(reportId), true);
@@ -182,7 +191,7 @@ public class ReportService {
 
     @Transactional
     public ThanksResponse removeThanks(Long reportId, ReportActor actor) {
-        reportRepository.getReport(reportId);
+        reportRepository.getReport(reportId, actor);
         thanksRepository.remove(reportId, actor);
 
         return new ThanksResponse(thanksRepository.count(reportId), false);

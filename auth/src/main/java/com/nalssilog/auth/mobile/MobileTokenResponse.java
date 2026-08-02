@@ -76,6 +76,7 @@ public record MobileTokenResponse(
         return new User(
                 String.valueOf(member.id()),
                 member.nickname(),
-                new Avatar(member.avatarType(), member.avatarValue()));
+                new Avatar(member.avatarType(), member.avatarValue()),
+                member.role());
     }
 }

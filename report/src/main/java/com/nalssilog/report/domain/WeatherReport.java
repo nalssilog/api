@@ -1,6 +1,7 @@
 package com.nalssilog.report.domain;
 
 import com.nalssilog.common.domain.BaseTimeEntity;
+import com.nalssilog.member.domain.TermsType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
@@ -61,8 +63,15 @@ public class WeatherReport extends BaseTimeEntity {
     @Column(name = "comment", nullable = true, length = 200)
     private String comment;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "moderation_status", nullable = false, length = 20)
+    private ModerationStatus moderationStatus;
+
     @OneToMany(mappedBy = "report", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<WeatherReportImage> images = new ArrayList<>();
+
+    @OneToMany(mappedBy = "report", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ReportConsent> consents = new ArrayList<>();
 
     public static WeatherReport ofMember(Long locationId, Long memberId, Temperature temperature,
                                          Precipitation precipitation, Sunlight sunlight, String comment) {
@@ -90,6 +99,21 @@ public class WeatherReport extends BaseTimeEntity {
         }
     }
 
+    public void addConsent(TermsType termsType, String version, Instant agreedAt) {
+        if (authorType != ActorType.ANONYMOUS) {
+            throw new IllegalStateException("Only anonymous reports can record report consent.");
+        }
+
+        boolean alreadyRecorded = consents.stream()
+                .anyMatch(consent -> consent.getTermsType() == termsType);
+
+        if (alreadyRecorded) {
+            throw new IllegalArgumentException("A report consent type can only be recorded once.");
+        }
+
+        consents.add(ReportConsent.agree(this, termsType, version, agreedAt));
+    }
+
     private static WeatherReport base(Long locationId, Temperature temperature, Precipitation precipitation,
                                       Sunlight sunlight, String comment) {
         WeatherReport report = new WeatherReport();
@@ -99,7 +123,20 @@ public class WeatherReport extends BaseTimeEntity {
         report.precipitation = precipitation;
         report.sunlight = sunlight;
         report.comment = comment;
+        report.moderationStatus = ModerationStatus.VISIBLE;
 
         return report;
+    }
+
+    public void hide() {
+        this.moderationStatus = ModerationStatus.HIDDEN;
+    }
+
+    public void restore() {
+        this.moderationStatus = ModerationStatus.VISIBLE;
+    }
+
+    public void removeByModerator() {
+        this.moderationStatus = ModerationStatus.REMOVED;
     }
 }

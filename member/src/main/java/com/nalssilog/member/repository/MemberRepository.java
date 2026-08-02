@@ -6,6 +6,7 @@ import com.nalssilog.member.application.dto.MemberSummary;
 import com.nalssilog.member.domain.Member;
 import com.nalssilog.member.domain.MemberErrorCode;
 import com.nalssilog.member.domain.MemberStatus;
+import com.nalssilog.member.domain.MemberRole;
 import com.nalssilog.member.domain.SocialAccount;
 import java.util.Collection;
 import java.util.List;
@@ -36,6 +37,15 @@ public class MemberRepository {
     public Optional<MemberInfo> findMemberInfo(Long memberId) {
         return memberJpaRepository.findById(memberId)
                 .map(this::toInfo);
+    }
+
+    public Optional<MemberRole> findRole(Long memberId) {
+        return memberJpaRepository.findById(memberId)
+                .map(Member::getRole);
+    }
+
+    public long countByRole(MemberRole role) {
+        return memberJpaRepository.countByRole(role);
     }
 
     public Optional<MemberInfo> findMemberInfoByEmail(String email) {
