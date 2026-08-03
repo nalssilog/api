@@ -198,7 +198,7 @@ public class MobileOAuthService {
         return switch (grant.result()) {
             case SUCCESS -> authenticated(grant, MobileAuthResult.SUCCESS, device);
             case LINK_SUCCESS -> grant.issueTokens()
-                    ? authenticated(grant, MobileAuthResult.LINK_SUCCESS, device)
+                    ? authenticated(grant, MobileAuthResult.SUCCESS, device)
                     : linkedWithoutTokens(grant);
             case SIGNUP_REQUIRED -> signupRequired(grant);
             case LINK_REQUIRED -> linkRequired(grant);
@@ -298,10 +298,9 @@ public class MobileOAuthService {
                             ticket.email(),
                             null));
 
-            return MobileOAuthGrant.linkSuccess(
+            return MobileOAuthGrant.success(
                     member.id(),
-                    ticket.provider(),
-                    true);
+                    ticket.provider());
         } catch (NalssiLogException _) {
             return MobileOAuthGrant.failed(
                     transaction.provider(), AuthErrorCode.OAUTH_FAILED.getCode());

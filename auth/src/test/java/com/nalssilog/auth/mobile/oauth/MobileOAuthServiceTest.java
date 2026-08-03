@@ -193,7 +193,7 @@ class MobileOAuthServiceTest {
     }
 
     @Test
-    void loginLinkIssuesSessionForNewlyLinkedProvider() {
+    void loginLinkReturnsSuccessAndIssuesSessionForNewlyLinkedProvider() {
         String verifier = "v".repeat(43);
         DeviceInfo device = new DeviceInfo(
                 "IOS · iPhone · 0.1.0",
@@ -253,10 +253,9 @@ class MobileOAuthServiceTest {
 
         MobileOAuthGrant grant = grantCaptor.getValue();
 
-        assertThat(grant).isEqualTo(MobileOAuthGrant.linkSuccess(
+        assertThat(grant).isEqualTo(MobileOAuthGrant.success(
                 7L,
-                Provider.KAKAO,
-                true));
+                Provider.KAKAO));
 
         when(codeStore.consume(
                 org.mockito.ArgumentMatchers.eq("one-time-code"),
@@ -275,8 +274,9 @@ class MobileOAuthServiceTest {
                 REDIRECT_URI,
                 device);
 
-        assertThat(result.result()).isEqualTo(MobileAuthResult.LINK_SUCCESS);
+        assertThat(result.result()).isEqualTo(MobileAuthResult.SUCCESS);
         assertThat(result.tokens()).isEqualTo(tokens);
+        assertThat(result.member()).isEqualTo(member);
 
         verify(authTokenService).issue(
                 7L,
@@ -290,6 +290,110 @@ class MobileOAuthServiceTest {
                 device);
         verify(memberClient).recordLogin(7L, Provider.KAKAO);
         verify(memberClient, never()).recordLogin(7L, Provider.NAVER);
+    }
+
+    @Test
+    void legacyLoginLinkGrantAlsoReturnsSuccessWithTokens() {
+        String verifier = "v".repeat(43);
+        DeviceInfo device = new DeviceInfo(
+                "IOS · iPhone · 0.1.0",
+                "client-a.test");
+        MemberInfo member = linkedMember();
+        TokenPair tokens = new TokenPair(
+                "access-token",
+                "refresh-token",
+                Duration.ofDays(14));
+
+        when(codeStore.consume(
+                org.mockito.ArgumentMatchers.eq("one-time-code"),
+                org.mockito.ArgumentMatchers.eq(REDIRECT_URI),
+                any()))
+                .thenReturn(MobileOAuthGrant.linkSuccess(
+                        7L,
+                        Provider.KAKAO,
+                        true));
+        when(memberClient.getMemberInfo(7L)).thenReturn(member);
+        when(authTokenService.issue(
+                7L,
+                MemberStatus.ACTIVE,
+                Provider.KAKAO,
+                device)).thenReturn(tokens);
+
+        MobileOAuthService.ExchangeResult result = service.exchange(
+                "one-time-code",
+                verifier,
+                REDIRECT_URI,
+                device);
+
+        assertThat(result.result()).isEqualTo(MobileAuthResult.SUCCESS);
+        assertThat(result.tokens()).isEqualTo(tokens);
+        assertThat(result.member()).isEqualTo(member);
+    }
+
+    @Test
+    void settingsSocialLinkKeepsSessionAndReturnsLinkSuccessWithoutTokens() {
+        String verifier = "v".repeat(43);
+        DeviceInfo device = new DeviceInfo(
+                "ANDROID · Galaxy · 0.1.0",
+                "client-a.test");
+        MobileOAuthTransaction transaction = new MobileOAuthTransaction(
+                MobileOAuthPurpose.SETTINGS_LINK,
+                Provider.KAKAO,
+                REDIRECT_URI,
+                CHALLENGE,
+                STATE,
+                null,
+                7L);
+        OAuthUserInfo linkedUserInfo = new OAuthUserInfo(
+                Provider.KAKAO,
+                "new-kakao-user",
+                "user@example.com",
+                null);
+        SocialAuthPrincipal principal = new SocialAuthPrincipal(
+                SocialLoginResult.newMember("user@example.com"),
+                linkedUserInfo,
+                Map.of());
+        MemberInfo member = linkedMember();
+
+        when(transactionStore.take("transaction"))
+                .thenReturn(Optional.of(transaction));
+        when(memberClient.linkSocial(7L, linkedUserInfo)).thenReturn(member);
+
+        service.complete("transaction", principal);
+
+        ArgumentCaptor<MobileOAuthGrant> grantCaptor =
+                ArgumentCaptor.forClass(MobileOAuthGrant.class);
+
+        verify(codeStore).save(
+                any(),
+                grantCaptor.capture(),
+                org.mockito.ArgumentMatchers.eq(REDIRECT_URI),
+                org.mockito.ArgumentMatchers.eq(CHALLENGE));
+
+        MobileOAuthGrant grant = grantCaptor.getValue();
+
+        assertThat(grant).isEqualTo(MobileOAuthGrant.linkSuccess(
+                7L,
+                Provider.KAKAO,
+                false));
+
+        when(codeStore.consume(
+                org.mockito.ArgumentMatchers.eq("one-time-code"),
+                org.mockito.ArgumentMatchers.eq(REDIRECT_URI),
+                any())).thenReturn(grant);
+        when(memberClient.getMemberInfo(7L)).thenReturn(member);
+
+        MobileOAuthService.ExchangeResult result = service.exchange(
+                "one-time-code",
+                verifier,
+                REDIRECT_URI,
+                device);
+
+        assertThat(result.result()).isEqualTo(MobileAuthResult.LINK_SUCCESS);
+        assertThat(result.tokens()).isNull();
+        assertThat(result.member()).isEqualTo(member);
+        verifyNoInteractions(authTokenService);
+        verify(memberClient, never()).recordLogin(any(), any());
     }
 
     @Test
