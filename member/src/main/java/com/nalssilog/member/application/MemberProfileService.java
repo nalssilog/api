@@ -27,6 +27,7 @@ public class MemberProfileService {
     private final MemberRepository memberRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final AvatarStorageClient avatarStorageClient;
+    private final MemberVisibilityPolicy visibilityPolicy;
 
     public boolean isNicknameAvailable(String nickname) {
         return !memberRepository.existsByNickname(nickname.strip());
@@ -85,10 +86,16 @@ public class MemberProfileService {
         return memberRepository.getMemberInfo(memberId);
     }
 
-    public MemberInfo getPublicProfile(Long memberId) {
-        return memberRepository.findMemberInfo(memberId)
+    public MemberInfo getPublicProfile(Long viewerMemberId, Long memberId) {
+        MemberInfo profile = memberRepository.findMemberInfo(memberId)
                 .filter(member -> member.status() == MemberStatus.ACTIVE)
                 .orElseThrow(() -> new NalssiLogException(MemberErrorCode.MEMBER_NOT_FOUND));
+
+        if (!visibilityPolicy.canView(viewerMemberId, memberId)) {
+            throw new NalssiLogException(MemberErrorCode.MEMBER_NOT_FOUND);
+        }
+
+        return profile;
     }
 
     public List<SocialAccountInfo> getSocialAccounts(Long memberId) {

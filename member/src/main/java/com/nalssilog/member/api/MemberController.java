@@ -50,8 +50,12 @@ public class MemberController {
     }
 
     @GetMapping("/{id}")
-    public MemberPublicProfileResponse publicProfile(@PathVariable Long id) {
-        return MemberPublicProfileResponse.from(memberProfileService.getPublicProfile(id));
+    public MemberPublicProfileResponse publicProfile(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Long viewerMemberId
+    ) {
+        return MemberPublicProfileResponse.from(
+                memberProfileService.getPublicProfile(viewerMemberId, id));
     }
 
     @PatchMapping("/me/name")

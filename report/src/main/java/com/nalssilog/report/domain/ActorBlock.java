@@ -21,7 +21,10 @@ import lombok.NoArgsConstructor;
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_actor_block_pair",
                 columnNames = {"blocker_type", "blocker_key", "blocked_type", "blocked_key"}),
-        indexes = @Index(name = "idx_actor_block_blocker", columnList = "blocker_type, blocker_key"))
+        indexes = {
+                @Index(name = "idx_actor_block_blocker", columnList = "blocker_type, blocker_key"),
+                @Index(name = "idx_actor_block_blocked", columnList = "blocked_type, blocked_key")
+        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ActorBlock extends BaseTimeEntity {

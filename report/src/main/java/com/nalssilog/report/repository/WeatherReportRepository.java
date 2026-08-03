@@ -104,7 +104,7 @@ public class WeatherReportRepository {
                 .where(
                         weatherReport.id.eq(reportId),
                         visibleOnly ? weatherReport.moderationStatus.eq(ModerationStatus.VISIBLE) : null,
-                        visibleOnly ? notBlockedBy(viewer) : null)
+                        visibleOnly ? withoutBlockRelation(viewer) : null)
                 .fetchOne();
 
         if (report == null) {
@@ -135,7 +135,7 @@ public class WeatherReportRepository {
                         weatherReport.locationId.eq(locationId),
                         weatherReport.moderationStatus.eq(ModerationStatus.VISIBLE),
                         cursorTime == null ? null : beforeCursor(cursorTime, cursorId),
-                        notBlockedBy(viewer))
+                        withoutBlockRelation(viewer))
                 .orderBy(weatherReport.createdAt.desc(), weatherReport.id.desc())
                 .limit(limit)
                 .fetch();
@@ -163,7 +163,7 @@ public class WeatherReportRepository {
                         weatherReport.authorMemberId.eq(memberId),
                         weatherReport.moderationStatus.eq(ModerationStatus.VISIBLE),
                         cursorTime == null ? null : beforeCursor(cursorTime, cursorId),
-                        notBlockedBy(viewer))
+                        withoutBlockRelation(viewer))
                 .orderBy(weatherReport.createdAt.desc(), weatherReport.id.desc())
                 .limit(limit)
                 .fetch();
@@ -286,8 +286,8 @@ public class WeatherReportRepository {
         return value == null ? 0 : value;
     }
 
-    private BooleanExpression notBlockedBy(ReportActor viewer) {
-        if (viewer == null) {
+    BooleanExpression withoutBlockRelation(ReportActor viewer) {
+        if (viewer == null || viewer.type() != ActorType.MEMBER) {
             return null;
         }
 
@@ -296,13 +296,20 @@ public class WeatherReportRepository {
                 .then(weatherReport.authorMemberId.stringValue())
                 .otherwise(weatherReport.authorAnonymousKey);
 
+        BooleanExpression viewerBlocksAuthor =
+                actorBlock.blockerType.eq(viewer.type())
+                        .and(actorBlock.blockerKey.eq(viewer.actorKey()))
+                        .and(actorBlock.blockedType.eq(weatherReport.authorType))
+                        .and(actorBlock.blockedKey.eq(authorKey));
+        BooleanExpression authorBlocksViewer =
+                actorBlock.blockerType.eq(weatherReport.authorType)
+                        .and(actorBlock.blockerKey.eq(authorKey))
+                        .and(actorBlock.blockedType.eq(viewer.type()))
+                        .and(actorBlock.blockedKey.eq(viewer.actorKey()));
+
         return JPAExpressions.selectOne()
                 .from(actorBlock)
-                .where(
-                        actorBlock.blockerType.eq(viewer.type()),
-                        actorBlock.blockerKey.eq(viewer.actorKey()),
-                        actorBlock.blockedType.eq(weatherReport.authorType),
-                        actorBlock.blockedKey.eq(authorKey))
+                .where(viewerBlocksAuthor.or(authorBlocksViewer))
                 .notExists();
     }
 }

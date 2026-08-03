@@ -28,10 +28,12 @@ class MemberProfileServiceTest {
     private final MemberRepository memberRepository = mock(MemberRepository.class);
     private final SocialAccountRepository socialAccountRepository = mock(SocialAccountRepository.class);
     private final AvatarStorageClient avatarStorageClient = mock(AvatarStorageClient.class);
+    private final MemberVisibilityPolicy visibilityPolicy = mock(MemberVisibilityPolicy.class);
     private final MemberProfileService service = new MemberProfileService(
             memberRepository,
             socialAccountRepository,
-            avatarStorageClient
+            avatarStorageClient,
+            visibilityPolicy
     );
 
     @Test
@@ -89,5 +91,42 @@ class MemberProfileServiceTest {
         service.unlinkSocial(1L, Provider.NAVER, Provider.KAKAO);
 
         verify(socialAccountRepository).delete(linked);
+    }
+
+    @Test
+    void hidesActivePublicProfileWhenBlockRelationExistsInEitherDirection() {
+        MemberInfo profile = activeProfile(7L);
+
+        when(memberRepository.findMemberInfo(7L)).thenReturn(Optional.of(profile));
+        when(visibilityPolicy.canView(8L, 7L)).thenReturn(false);
+
+        NalssiLogException exception = catchThrowableOfType(
+                NalssiLogException.class,
+                () -> service.getPublicProfile(8L, 7L));
+
+        assertThat(exception.getErrorCode()).isEqualTo(MemberErrorCode.MEMBER_NOT_FOUND);
+    }
+
+    @Test
+    void returnsActivePublicProfileWhenNoBlockRelationExists() {
+        MemberInfo profile = activeProfile(7L);
+
+        when(memberRepository.findMemberInfo(7L)).thenReturn(Optional.of(profile));
+        when(visibilityPolicy.canView(8L, 7L)).thenReturn(true);
+
+        assertThat(service.getPublicProfile(8L, 7L)).isSameAs(profile);
+    }
+
+    private MemberInfo activeProfile(Long memberId) {
+        return new MemberInfo(
+                memberId,
+                "이웃",
+                "이름",
+                "user@example.com",
+                AvatarType.PRESET,
+                "avatar-01",
+                MemberStatus.ACTIVE,
+                Provider.KAKAO,
+                List.of(Provider.KAKAO));
     }
 }

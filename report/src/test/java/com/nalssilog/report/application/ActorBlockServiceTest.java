@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.nalssilog.common.exception.NalssiLogException;
@@ -14,6 +15,7 @@ import com.nalssilog.report.application.dto.AuthorInfo;
 import com.nalssilog.report.application.dto.ReportActor;
 import com.nalssilog.report.client.MemberClient;
 import com.nalssilog.report.domain.ActorBlock;
+import com.nalssilog.report.domain.ActorType;
 import com.nalssilog.report.domain.ReportErrorCode;
 import com.nalssilog.report.repository.ActorBlockJpaRepository;
 import java.util.List;
@@ -94,6 +96,59 @@ class ActorBlockServiceTest {
         assertThat(item.nickname()).isEqualTo("이웃");
         assertThat(item.avatar().type()).isEqualTo(AvatarType.PRESET);
         assertThat(item.avatar().value()).isEqualTo("avatar-01");
+    }
+
+    @Test
+    void memberCannotViewProfileOfMemberTheyBlocked() {
+        ActorBlock block = ActorBlock.create(
+                ReportActor.member(8L), ReportActor.member(7L));
+
+        when(blockRepository.findByBlockerTypeAndBlockerKeyAndBlockedTypeAndBlockedKey(
+                ActorType.MEMBER,
+                "8",
+                ActorType.MEMBER,
+                "7"))
+                .thenReturn(Optional.of(block));
+
+        assertThat(service.canView(8L, 7L)).isFalse();
+    }
+
+    @Test
+    void memberCannotViewProfileOfMemberWhoBlockedThem() {
+        ActorBlock reverseBlock = ActorBlock.create(
+                ReportActor.member(7L), ReportActor.member(8L));
+
+        when(blockRepository.findByBlockerTypeAndBlockerKeyAndBlockedTypeAndBlockedKey(
+                ActorType.MEMBER,
+                "8",
+                ActorType.MEMBER,
+                "7"))
+                .thenReturn(Optional.empty());
+        when(blockRepository.findByBlockerTypeAndBlockerKeyAndBlockedTypeAndBlockedKey(
+                ActorType.MEMBER,
+                "7",
+                ActorType.MEMBER,
+                "8"))
+                .thenReturn(Optional.of(reverseBlock));
+
+        assertThat(service.canView(8L, 7L)).isFalse();
+    }
+
+    @Test
+    void memberCanViewProfileWhenNoBlockRelationExists() {
+        when(blockRepository.findByBlockerTypeAndBlockerKeyAndBlockedTypeAndBlockedKey(
+                any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
+
+        assertThat(service.canView(8L, 7L)).isTrue();
+    }
+
+    @Test
+    void anonymousAndSelfProfileViewsDoNotNeedBlockLookup() {
+        assertThat(service.canView(null, 7L)).isTrue();
+        assertThat(service.canView(7L, 7L)).isTrue();
+
+        verifyNoInteractions(blockRepository);
     }
 
 }

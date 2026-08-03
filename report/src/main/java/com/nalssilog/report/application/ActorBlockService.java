@@ -1,6 +1,7 @@
 package com.nalssilog.report.application;
 
 import com.nalssilog.common.exception.NalssiLogException;
+import com.nalssilog.member.application.MemberVisibilityPolicy;
 import com.nalssilog.report.api.dto.AuthorBlockResponse;
 import com.nalssilog.report.api.dto.BlockedAuthorPageResponse;
 import com.nalssilog.report.api.dto.BlockedAuthorPageResponse.Avatar;
@@ -23,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class ActorBlockService {
+public class ActorBlockService implements MemberVisibilityPolicy {
 
     private static final int MAX_BLOCKS = 200;
     private static final int MAX_PAGE_SIZE = 50;
@@ -108,6 +109,21 @@ public class ActorBlockService {
                 blocks.getSize(),
                 blocks.getTotalElements(),
                 blocks.getTotalPages());
+    }
+
+    @Override
+    public boolean canView(Long viewerMemberId, Long targetMemberId) {
+        if (viewerMemberId == null
+                || targetMemberId == null
+                || viewerMemberId.equals(targetMemberId)) {
+            return true;
+        }
+
+        ReportActor viewer = ReportActor.member(viewerMemberId);
+        ReportActor target = ReportActor.member(targetMemberId);
+
+        return find(viewer, target).isEmpty()
+                && find(target, viewer).isEmpty();
     }
 
     private BlockedAuthor toBlockedAuthor(ActorBlock block) {

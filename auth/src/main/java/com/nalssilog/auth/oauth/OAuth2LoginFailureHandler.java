@@ -4,6 +4,7 @@ import static com.nalssilog.auth.oauth.CustomOAuth2UserService.EMAIL_REQUIRED_ER
 
 import com.nalssilog.auth.mobile.oauth.MobileOAuthRequestAttributes;
 import com.nalssilog.auth.mobile.oauth.MobileOAuthService;
+import com.nalssilog.auth.ticket.AuthChannel;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -36,21 +37,41 @@ public class OAuth2LoginFailureHandler implements AuthenticationFailureHandler {
         log.warn("OAuth2 login failed code={} type={}",
                 code, exception.getClass().getSimpleName());
 
-        var mobileTransaction = MobileOAuthRequestAttributes.transactionId(request);
+        if (MobileOAuthRequestAttributes.channel(request)
+                .filter(channel -> channel == AuthChannel.MOBILE)
+                .isPresent()) {
+            redirectMobileFailure(request, response, code);
 
-        if (mobileTransaction.isPresent()) {
-            var callback = mobileOAuthService.completeFailure(
-                    mobileTransaction.get(),
-                    code);
-
-            if (callback.isPresent()) {
-                response.sendRedirect(callback.get());
-
-                return;
-            }
+            return;
         }
 
         response.sendRedirect(frontendBaseUrl + "/auth/callback?result=FAILED&code=" + code);
+    }
+
+    private void redirectMobileFailure(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            String code
+    ) throws IOException {
+        var mobileTransaction = MobileOAuthRequestAttributes.transactionId(request);
+
+        if (mobileTransaction.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+
+            return;
+        }
+
+        var callback = mobileOAuthService.completeFailure(
+                mobileTransaction.get(),
+                code);
+
+        if (callback.isPresent()) {
+            response.sendRedirect(callback.get());
+
+            return;
+        }
+
+        response.sendError(HttpServletResponse.SC_GONE);
     }
 
     private String resolveCode(AuthenticationException exception) {
