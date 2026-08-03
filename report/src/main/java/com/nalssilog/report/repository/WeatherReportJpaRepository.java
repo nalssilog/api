@@ -1,6 +1,7 @@
 package com.nalssilog.report.repository;
 
 import com.nalssilog.report.domain.ActorType;
+import com.nalssilog.report.domain.ModerationStatus;
 import com.nalssilog.report.domain.WeatherReport;
 import java.time.Instant;
 import java.util.List;
@@ -18,5 +19,6 @@ public interface WeatherReportJpaRepository extends JpaRepository<WeatherReport,
     List<WeatherReport> findAllByAuthorTypeAndAuthorMemberIdOrderByCreatedAtDescIdDesc(
             ActorType authorType, Long authorMemberId, Pageable pageable);
 
-    long countByLocationIdAndCreatedAtGreaterThanEqual(Long locationId, Instant since);
+    long countByLocationIdAndModerationStatusAndCreatedAtGreaterThanEqual(
+            Long locationId, ModerationStatus moderationStatus, Instant since);
 }

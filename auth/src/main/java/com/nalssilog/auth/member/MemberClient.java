@@ -7,6 +7,7 @@ import com.nalssilog.member.application.dto.MemberInfo;
 import com.nalssilog.member.application.dto.SocialLoginResult;
 import com.nalssilog.member.application.dto.TermsAgreement;
 import com.nalssilog.member.domain.Provider;
+import com.nalssilog.member.domain.MemberRole;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,10 @@ public class MemberClient {
 
     public Optional<MemberInfo> findMemberInfo(Long memberId) {
         return memberAccountService.findMemberInfo(memberId);
+    }
+
+    public Optional<MemberRole> findRole(Long memberId) {
+        return memberAccountService.findRole(memberId);
     }
 
     public Optional<MemberInfo> findMemberInfo(

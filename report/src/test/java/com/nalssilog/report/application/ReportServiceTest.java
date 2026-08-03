@@ -8,12 +8,16 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.common.response.CursorPage;
+import com.nalssilog.member.application.dto.TermsAgreement;
+import com.nalssilog.member.domain.TermsType;
 import com.nalssilog.report.api.dto.ReportResponse;
 import com.nalssilog.report.application.dto.AuthorInfo;
+import com.nalssilog.report.application.dto.CreateReportCommand;
 import com.nalssilog.report.application.dto.LocationSummary;
 import com.nalssilog.report.application.dto.ReportActor;
 import com.nalssilog.report.application.dto.ReportData;
@@ -23,6 +27,7 @@ import com.nalssilog.report.client.LocationClient;
 import com.nalssilog.report.client.MemberClient;
 import com.nalssilog.report.domain.ActorType;
 import com.nalssilog.report.domain.Precipitation;
+import com.nalssilog.report.domain.ReportConsent;
 import com.nalssilog.report.domain.ReportErrorCode;
 import com.nalssilog.report.domain.Sunlight;
 import com.nalssilog.report.domain.Temperature;
@@ -48,6 +53,7 @@ class ReportServiceTest {
     private final LocationClient locationClient = mock(LocationClient.class);
     private final ImageStorageClient imageStorageClient = mock(ImageStorageClient.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+    private final ReportConsentPolicy reportConsentPolicy = new ReportConsentPolicy();
 
     private ReportService service;
 
@@ -59,8 +65,60 @@ class ReportServiceTest {
                 memberClient,
                 locationClient,
                 imageStorageClient,
-                eventPublisher
+                eventPublisher,
+                reportConsentPolicy
         );
+    }
+
+    @Test
+    void anonymousReportRequiresAndStoresBothTermAgreements() {
+        when(locationClient.getLocation(1L)).thenReturn(location());
+        when(reportRepository.save(any())).thenReturn(anonymousData("anonymous-key"));
+
+        service.create(ReportActor.anonymous("anonymous-key"), createCommand(List.of(
+                new TermsAgreement(TermsType.SERVICE, "service-1.0"),
+                new TermsAgreement(TermsType.PRIVACY, "privacy-2026-08")
+        )));
+
+        ArgumentCaptor<WeatherReport> reportCaptor = ArgumentCaptor.forClass(WeatherReport.class);
+        verify(reportRepository).save(reportCaptor.capture());
+
+        List<ReportConsent> consents = reportCaptor.getValue().getConsents();
+        assertThat(consents)
+                .extracting(ReportConsent::getTermsType)
+                .containsExactly(TermsType.SERVICE, TermsType.PRIVACY);
+        assertThat(consents)
+                .extracting(ReportConsent::getVersion)
+                .containsExactly("service-1.0", "privacy-2026-08");
+        assertThat(consents)
+                .extracting(ReportConsent::getAgreedAt)
+                .doesNotContainNull()
+                .allMatch(consents.getFirst().getAgreedAt()::equals);
+    }
+
+    @Test
+    void anonymousReportIsRejectedBeforeOtherWorkWhenRequiredTermIsMissing() {
+        NalssiLogException exception = catchThrowableOfType(
+                NalssiLogException.class,
+                () -> service.create(ReportActor.anonymous("anonymous-key"), createCommand(List.of(
+                        new TermsAgreement(TermsType.SERVICE, "1.0")
+                )))
+        );
+
+        assertThat(exception.getErrorCode()).isEqualTo(ReportErrorCode.TERMS_NOT_AGREED);
+        verifyNoInteractions(locationClient, imageStorageClient, reportRepository);
+    }
+
+    @Test
+    void memberReportDoesNotRequireOrStoreReportConsents() {
+        when(locationClient.getLocation(1L)).thenReturn(location());
+        when(reportRepository.save(any())).thenReturn(memberData(10L, 1L));
+
+        service.create(ReportActor.member(1L), createCommand(List.of()));
+
+        ArgumentCaptor<WeatherReport> reportCaptor = ArgumentCaptor.forClass(WeatherReport.class);
+        verify(reportRepository).save(reportCaptor.capture());
+        assertThat(reportCaptor.getValue().getConsents()).isEmpty();
     }
 
     @Test
@@ -118,7 +176,7 @@ class ReportServiceTest {
     void detailMarksPreLoginAnonymousReportAsMineAfterLogin() {
         ReportData data = anonymousData("anonymous-key");
 
-        when(reportRepository.getReport(10L)).thenReturn(data);
+        when(reportRepository.getReport(10L, ReportActor.member(1L))).thenReturn(data);
         when(locationClient.getLocation(1L)).thenReturn(location());
 
         ReportResponse response = service.get(
@@ -134,7 +192,8 @@ class ReportServiceTest {
     void listIncludesOwnershipCalculatedFromAllAvailableActors() {
         ReportData data = anonymousData("anonymous-key");
 
-        when(reportRepository.findPage(eq(1L), isNull(), isNull(), eq(21)))
+        when(reportRepository.findPage(
+                eq(1L), isNull(), isNull(), eq(ReportActor.member(1L)), eq(21)))
                 .thenReturn(List.of(data));
         when(locationClient.getLocation(1L)).thenReturn(location());
         when(thanksRepository.countByReportIds(List.of(10L))).thenReturn(Map.of());
@@ -162,7 +221,7 @@ class ReportServiceTest {
         AuthorInfo firstAuthor = new AuthorInfo(7L, "first", null, null);
         AuthorInfo secondAuthor = new AuthorInfo(8L, "second", null, null);
 
-        when(reportRepository.findPage(eq(1L), isNull(), isNull(), eq(21)))
+        when(reportRepository.findPage(eq(1L), isNull(), isNull(), isNull(), eq(21)))
                 .thenReturn(List.of(first, second));
         when(locationClient.getLocation(1L)).thenReturn(location());
         when(thanksRepository.countByReportIds(List.of(10L, 11L))).thenReturn(Map.of());
@@ -204,6 +263,18 @@ class ReportServiceTest {
     private WeatherReport memberReport(Long memberId) {
         return WeatherReport.ofMember(
                 1L, memberId, Temperature.FRESH, Precipitation.NONE, Sunlight.MODERATE, "맑아요");
+    }
+
+    private CreateReportCommand createCommand(List<TermsAgreement> agreedTerms) {
+        return new CreateReportCommand(
+                1L,
+                Temperature.FRESH,
+                Precipitation.NONE,
+                Sunlight.MODERATE,
+                "맑아요",
+                List.of(),
+                agreedTerms
+        );
     }
 
     private WeatherReport anonymousReport(String anonymousKey) {

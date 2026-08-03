@@ -2,13 +2,16 @@ package com.nalssilog.report.repository;
 
 import static com.nalssilog.report.domain.QWeatherReport.weatherReport;
 import static com.nalssilog.report.domain.QWeatherReportImage.weatherReportImage;
+import static com.nalssilog.report.domain.QActorBlock.actorBlock;
 
 import com.nalssilog.common.exception.NalssiLogException;
 import com.nalssilog.report.application.dto.PopularLocationAggregate;
 import com.nalssilog.report.application.dto.ReportData;
+import com.nalssilog.report.application.dto.ReportActor;
 import com.nalssilog.report.application.dto.WeatherStatsData;
 import com.nalssilog.report.domain.ActorType;
 import com.nalssilog.report.domain.Precipitation;
+import com.nalssilog.report.domain.ModerationStatus;
 import com.nalssilog.report.domain.ReportErrorCode;
 import com.nalssilog.report.domain.Sunlight;
 import com.nalssilog.report.domain.Temperature;
@@ -18,7 +21,10 @@ import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.DateTimeExpression;
 import com.querydsl.core.types.dsl.EnumPath;
 import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.core.types.dsl.StringExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.querydsl.jpa.JPAExpressions;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.EnumMap;
@@ -28,8 +34,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -71,17 +75,36 @@ public class WeatherReportRepository {
     }
 
     public ReportData getReport(Long reportId) {
-        return ReportData.of(getReportEntity(reportId));
+        return getReport(reportId, null);
+    }
+
+    public ReportData getReport(Long reportId, ReportActor viewer) {
+        return ReportData.of(getVisibleReportEntity(reportId, viewer));
     }
 
     /** 삭제처럼 관리 엔티티가 필요한 쓰기 유스케이스 전용. 반드시 트랜잭션 안에서 사용한다. */
     public WeatherReport getReportEntity(Long reportId) {
+        return findReportEntity(reportId, false, null);
+    }
+
+    public WeatherReport getVisibleReportEntity(Long reportId) {
+        return getVisibleReportEntity(reportId, null);
+    }
+
+    public WeatherReport getVisibleReportEntity(Long reportId, ReportActor viewer) {
+        return findReportEntity(reportId, true, viewer);
+    }
+
+    private WeatherReport findReportEntity(Long reportId, boolean visibleOnly, ReportActor viewer) {
         WeatherReport report = queryFactory
                 .selectFrom(weatherReport)
                 .distinct()
                 .leftJoin(weatherReport.images, weatherReportImage)
                 .fetchJoin()
-                .where(weatherReport.id.eq(reportId))
+                .where(
+                        weatherReport.id.eq(reportId),
+                        visibleOnly ? weatherReport.moderationStatus.eq(ModerationStatus.VISIBLE) : null,
+                        visibleOnly ? withoutBlockRelation(viewer) : null)
                 .fetchOne();
 
         if (report == null) {
@@ -96,10 +119,26 @@ public class WeatherReportRepository {
     }
 
     public List<ReportData> findPage(Long locationId, Instant cursorTime, Long cursorId, int limit) {
-        Pageable pageable = PageRequest.of(0, limit);
-        List<WeatherReport> reports = cursorTime == null
-                ? weatherReportJpaRepository.findAllByLocationIdOrderByCreatedAtDescIdDesc(locationId, pageable)
-                : findAfterLocationCursor(locationId, cursorTime, cursorId, limit);
+        return findPage(locationId, cursorTime, cursorId, null, limit);
+    }
+
+    public List<ReportData> findPage(
+            Long locationId,
+            Instant cursorTime,
+            Long cursorId,
+            ReportActor viewer,
+            int limit
+    ) {
+        List<WeatherReport> reports = queryFactory
+                .selectFrom(weatherReport)
+                .where(
+                        weatherReport.locationId.eq(locationId),
+                        weatherReport.moderationStatus.eq(ModerationStatus.VISIBLE),
+                        cursorTime == null ? null : beforeCursor(cursorTime, cursorId),
+                        withoutBlockRelation(viewer))
+                .orderBy(weatherReport.createdAt.desc(), weatherReport.id.desc())
+                .limit(limit)
+                .fetch();
 
         return fetchImages(reports).stream()
                 .map(ReportData::of)
@@ -107,11 +146,27 @@ public class WeatherReportRepository {
     }
 
     public List<ReportData> findMemberPage(Long memberId, Instant cursorTime, Long cursorId, int limit) {
-        Pageable pageable = PageRequest.of(0, limit);
-        List<WeatherReport> reports = cursorTime == null
-                ? weatherReportJpaRepository.findAllByAuthorTypeAndAuthorMemberIdOrderByCreatedAtDescIdDesc(
-                        ActorType.MEMBER, memberId, pageable)
-                : findAfterMemberCursor(memberId, cursorTime, cursorId, limit);
+        return findMemberPage(memberId, cursorTime, cursorId, null, limit);
+    }
+
+    public List<ReportData> findMemberPage(
+            Long memberId,
+            Instant cursorTime,
+            Long cursorId,
+            ReportActor viewer,
+            int limit
+    ) {
+        List<WeatherReport> reports = queryFactory
+                .selectFrom(weatherReport)
+                .where(
+                        weatherReport.authorType.eq(ActorType.MEMBER),
+                        weatherReport.authorMemberId.eq(memberId),
+                        weatherReport.moderationStatus.eq(ModerationStatus.VISIBLE),
+                        cursorTime == null ? null : beforeCursor(cursorTime, cursorId),
+                        withoutBlockRelation(viewer))
+                .orderBy(weatherReport.createdAt.desc(), weatherReport.id.desc())
+                .limit(limit)
+                .fetch();
 
         return fetchImages(reports).stream()
                 .map(ReportData::of)
@@ -136,7 +191,8 @@ public class WeatherReportRepository {
                 .from(weatherReport)
                 .where(
                         weatherReport.createdAt.goe(windowStartedAt),
-                        weatherReport.createdAt.lt(windowEndedAt))
+                        weatherReport.createdAt.lt(windowEndedAt),
+                        weatherReport.moderationStatus.eq(ModerationStatus.VISIBLE))
                 .groupBy(weatherReport.locationId)
                 .orderBy(
                         uniqueReporterCount.desc(),
@@ -158,7 +214,8 @@ public class WeatherReportRepository {
     /** 최근({@code since} 이후) 제보의 3축 분포 + 제보 수 집계. */
     public WeatherStatsData statsSince(Long locationId, Instant since) {
         long reportCount = weatherReportJpaRepository
-                .countByLocationIdAndCreatedAtGreaterThanEqual(locationId, since);
+                .countByLocationIdAndModerationStatusAndCreatedAtGreaterThanEqual(
+                        locationId, ModerationStatus.VISIBLE, since);
 
         return new WeatherStatsData(
                 reportCount,
@@ -166,33 +223,6 @@ public class WeatherReportRepository {
                 countByAxis(weatherReport.precipitation, Precipitation.class, locationId, since),
                 countByAxis(weatherReport.sunlight, Sunlight.class, locationId, since)
         );
-    }
-
-    private List<WeatherReport> findAfterLocationCursor(
-            Long locationId, Instant cursorTime, Long cursorId, int limit) {
-        return queryFactory
-                .selectFrom(weatherReport)
-                .where(
-                        weatherReport.locationId.eq(locationId),
-                        beforeCursor(cursorTime, cursorId)
-                )
-                .orderBy(weatherReport.createdAt.desc(), weatherReport.id.desc())
-                .limit(limit)
-                .fetch();
-    }
-
-    private List<WeatherReport> findAfterMemberCursor(
-            Long memberId, Instant cursorTime, Long cursorId, int limit) {
-        return queryFactory
-                .selectFrom(weatherReport)
-                .where(
-                        weatherReport.authorType.eq(ActorType.MEMBER),
-                        weatherReport.authorMemberId.eq(memberId),
-                        beforeCursor(cursorTime, cursorId)
-                )
-                .orderBy(weatherReport.createdAt.desc(), weatherReport.id.desc())
-                .limit(limit)
-                .fetch();
     }
 
     /**
@@ -239,7 +269,8 @@ public class WeatherReportRepository {
                 .from(weatherReport)
                 .where(
                         weatherReport.locationId.eq(locationId),
-                        weatherReport.createdAt.goe(since)
+                        weatherReport.createdAt.goe(since),
+                        weatherReport.moderationStatus.eq(ModerationStatus.VISIBLE)
                 )
                 .groupBy(axis)
                 .fetch();
@@ -253,5 +284,32 @@ public class WeatherReportRepository {
 
     private static long value(Long value) {
         return value == null ? 0 : value;
+    }
+
+    BooleanExpression withoutBlockRelation(ReportActor viewer) {
+        if (viewer == null || viewer.type() != ActorType.MEMBER) {
+            return null;
+        }
+
+        StringExpression authorKey = new CaseBuilder()
+                .when(weatherReport.authorType.eq(ActorType.MEMBER))
+                .then(weatherReport.authorMemberId.stringValue())
+                .otherwise(weatherReport.authorAnonymousKey);
+
+        BooleanExpression viewerBlocksAuthor =
+                actorBlock.blockerType.eq(viewer.type())
+                        .and(actorBlock.blockerKey.eq(viewer.actorKey()))
+                        .and(actorBlock.blockedType.eq(weatherReport.authorType))
+                        .and(actorBlock.blockedKey.eq(authorKey));
+        BooleanExpression authorBlocksViewer =
+                actorBlock.blockerType.eq(weatherReport.authorType)
+                        .and(actorBlock.blockerKey.eq(authorKey))
+                        .and(actorBlock.blockedType.eq(viewer.type()))
+                        .and(actorBlock.blockedKey.eq(viewer.actorKey()));
+
+        return JPAExpressions.selectOne()
+                .from(actorBlock)
+                .where(viewerBlocksAuthor.or(authorBlocksViewer))
+                .notExists();
     }
 }

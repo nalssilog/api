@@ -3,6 +3,7 @@ package com.nalssilog.member.application.dto;
 import com.nalssilog.member.domain.AvatarType;
 import com.nalssilog.member.domain.Member;
 import com.nalssilog.member.domain.MemberStatus;
+import com.nalssilog.member.domain.MemberRole;
 import com.nalssilog.member.domain.Provider;
 import com.nalssilog.member.domain.SocialAccount;
 import java.util.Comparator;
@@ -21,8 +22,25 @@ public record MemberInfo(
         String avatarValue,
         MemberStatus status,
         Provider lastLoginProvider,
-        List<Provider> connectedProviders
+        List<Provider> connectedProviders,
+        MemberRole role
 ) {
+
+    /** 기존 내부 호출·테스트와의 소스 호환을 위한 일반 회원 기본 생성자. */
+    public MemberInfo(
+            Long id,
+            String nickname,
+            String name,
+            String email,
+            AvatarType avatarType,
+            String avatarValue,
+            MemberStatus status,
+            Provider lastLoginProvider,
+            List<Provider> connectedProviders
+    ) {
+        this(id, nickname, name, email, avatarType, avatarValue, status,
+                lastLoginProvider, connectedProviders, MemberRole.MEMBER);
+    }
 
     public static MemberInfo of(Member member, List<SocialAccount> accounts) {
         Provider lastLoginProvider = accounts.stream()
@@ -44,7 +62,8 @@ public record MemberInfo(
                 member.getAvatarValue(),
                 member.getStatus(),
                 lastLoginProvider,
-                connectedProviders
+                connectedProviders,
+                member.getRole()
         );
     }
 }

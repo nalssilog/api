@@ -60,6 +60,10 @@ public class Member extends BaseTimeEntity {
     @Column(name = "status", nullable = false, length = 20)
     private MemberStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    private MemberRole role;
+
     @Column(name = "withdrawn_at", nullable = true)
     private Instant withdrawnAt;
 
@@ -73,6 +77,7 @@ public class Member extends BaseTimeEntity {
         member.avatarType = AvatarType.PRESET;
         member.avatarValue = DEFAULT_AVATAR_PRESETS.get(ThreadLocalRandom.current().nextInt(DEFAULT_AVATAR_PRESETS.size()));
         member.status = MemberStatus.ACTIVE;
+        member.role = MemberRole.MEMBER;
 
         return member;
     }
@@ -92,6 +97,14 @@ public class Member extends BaseTimeEntity {
 
         this.avatarType = avatarType;
         this.avatarValue = avatarType == AvatarType.DEFAULT ? null : avatarValue;
+    }
+
+    public void changeRole(MemberRole role) {
+        if (role == null) {
+            throw new IllegalArgumentException("Member role is required.");
+        }
+
+        this.role = role;
     }
 
     /** 탈퇴: WITHDRAWN + 개인정보 익명화(닉네임도 null 로 비워 재사용 허용). 제보는 별도 익명화. */

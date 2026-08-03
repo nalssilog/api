@@ -2,6 +2,7 @@ package com.nalssilog.auth.token;
 
 import com.nalssilog.auth.core.AuthErrorCode;
 import com.nalssilog.auth.mobile.guest.MobileGuestCredentialService;
+import com.nalssilog.auth.member.MemberClient;
 import com.nalssilog.auth.oauth.SocialAuthPrincipal;
 import com.nalssilog.auth.security.ApiAuthenticationEntryPoint;
 import com.nalssilog.auth.security.CredentialAuthenticationException;
@@ -12,12 +13,14 @@ import com.nalssilog.auth.web.AuthCookieManager;
 import com.nalssilog.common.filter.RequestLoggingFilter;
 import com.nalssilog.common.security.VerifiedRequestCredentials;
 import com.nalssilog.member.domain.MemberStatus;
+import com.nalssilog.member.domain.MemberRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,6 +44,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenStore refreshTokenStore;
     private final ApiAuthenticationEntryPoint authenticationEntryPoint;
+    private final MemberClient memberClient;
 
     @Override
     protected void doFilterInternal(
@@ -137,15 +141,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             AccessTokenPayload payload,
             CredentialTransport transport
     ) {
+        var authorities = new ArrayList<SimpleGrantedAuthority>();
+
+        authorities.add(new SimpleGrantedAuthority(SocialAuthPrincipal.roleOf(payload.status())));
+
+        if (payload.status() == MemberStatus.ACTIVE && request.getRequestURI().startsWith("/api/admin/")) {
+            memberClient.findRole(payload.memberId())
+                    .ifPresent(role -> addOperationalAuthorities(authorities, role));
+        }
+
         var authentication = UsernamePasswordAuthenticationToken.authenticated(
                 payload.memberId(),
                 null,
-                List.of(new SimpleGrantedAuthority(SocialAuthPrincipal.roleOf(payload.status()))));
+                authorities);
 
         authentication.setDetails(new AuthRequestDetails(
                 payload.provider(), payload.sessionId(), transport));
         SecurityContextHolder.getContext().setAuthentication(authentication);
         request.setAttribute(RequestLoggingFilter.ACTOR_MEMBER_ID, payload.memberId());
+    }
+
+    private void addOperationalAuthorities(
+            List<SimpleGrantedAuthority> authorities,
+            MemberRole role
+    ) {
+        if (role == MemberRole.MODERATOR || role == MemberRole.ADMIN) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_MODERATOR"));
+        }
+
+        if (role == MemberRole.ADMIN) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        }
     }
 
     private void reject(

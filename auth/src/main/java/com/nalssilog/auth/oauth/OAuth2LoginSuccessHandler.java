@@ -4,6 +4,7 @@ import com.nalssilog.auth.device.DeviceInfoResolver;
 import com.nalssilog.auth.mobile.oauth.MobileOAuthRequestAttributes;
 import com.nalssilog.auth.mobile.oauth.MobileOAuthService;
 import com.nalssilog.auth.oauth.WebOAuthService.Completion;
+import com.nalssilog.auth.ticket.AuthChannel;
 import com.nalssilog.auth.web.AuthCookieManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -39,10 +40,18 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 (SocialPrincipal) authentication.getPrincipal(),
                 "principal must not be null");
 
-        Optional<String> mobileTransaction =
-                MobileOAuthRequestAttributes.transactionId(request);
+        if (MobileOAuthRequestAttributes.channel(request)
+                .filter(channel -> channel == AuthChannel.MOBILE)
+                .isPresent()) {
+            Optional<String> mobileTransaction =
+                    MobileOAuthRequestAttributes.transactionId(request);
 
-        if (mobileTransaction.isPresent()) {
+            if (mobileTransaction.isEmpty()) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+
+                return;
+            }
+
             response.sendRedirect(mobileOAuthService.complete(
                     mobileTransaction.get(),
                     principal));

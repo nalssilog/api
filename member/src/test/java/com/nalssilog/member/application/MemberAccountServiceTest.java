@@ -13,9 +13,11 @@ import com.nalssilog.member.application.dto.SocialLoginResult;
 import com.nalssilog.member.domain.Member;
 import com.nalssilog.member.domain.MemberErrorCode;
 import com.nalssilog.member.domain.MemberStatus;
+import com.nalssilog.member.domain.MemberRole;
 import com.nalssilog.member.domain.Provider;
 import com.nalssilog.member.domain.SocialAccount;
 import com.nalssilog.member.repository.MemberRepository;
+import com.nalssilog.member.repository.MemberRoleChangeJpaRepository;
 import com.nalssilog.member.repository.SocialAccountRepository;
 import java.sql.SQLException;
 import java.util.Optional;
@@ -30,10 +32,42 @@ class MemberAccountServiceTest {
     private final MemberRepository memberRepository = mock(MemberRepository.class);
     private final SocialAccountRepository socialAccountRepository =
             mock(SocialAccountRepository.class);
+    private final MemberRoleChangeJpaRepository roleChangeRepository =
+            mock(MemberRoleChangeJpaRepository.class);
     private final MemberAccountService service = new MemberAccountService(
             memberRepository,
             socialAccountRepository,
-            mock(ApplicationEventPublisher.class));
+            mock(ApplicationEventPublisher.class),
+            roleChangeRepository);
+
+    @Test
+    void lastAdminCannotBeDemoted() {
+        Member admin = Member.register("admin@example.com", "관리자", "관리자01");
+
+        admin.changeRole(MemberRole.ADMIN);
+        when(memberRepository.getMember(7L)).thenReturn(admin);
+        when(memberRepository.countByRole(MemberRole.ADMIN)).thenReturn(1L);
+
+        NalssiLogException exception = catchThrowableOfType(
+                NalssiLogException.class,
+                () -> service.changeRole(7L, MemberRole.MEMBER, 9L));
+
+        assertThat(exception.getErrorCode()).isEqualTo(MemberErrorCode.LAST_ADMIN_REQUIRED);
+        assertThat(admin.getRole()).isEqualTo(MemberRole.ADMIN);
+        verify(roleChangeRepository, never()).save(any());
+    }
+
+    @Test
+    void roleChangeIsPersistedAsAuditRecord() {
+        Member member = Member.register("user@example.com", "회원", "회원01");
+
+        when(memberRepository.getMember(7L)).thenReturn(member);
+
+        service.changeRole(7L, MemberRole.MODERATOR, 9L);
+
+        assertThat(member.getRole()).isEqualTo(MemberRole.MODERATOR);
+        verify(roleChangeRepository).save(any());
+    }
 
     @Test
     void resolvingExistingSocialIdentityDoesNotRecordServiceLogin() {

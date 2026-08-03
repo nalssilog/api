@@ -1,6 +1,7 @@
 package com.nalssilog.report.application.dto;
 
 import com.nalssilog.report.domain.ActorType;
+import com.nalssilog.report.domain.WeatherReport;
 
 /**
  * 제보 작성·감사해요의 주체. 회원(memberId) 또는 익명(anonymousKey).
@@ -14,6 +15,12 @@ public record ReportActor(ActorType type, Long memberId, String anonymousKey) {
 
     public static ReportActor anonymous(String anonymousKey) {
         return new ReportActor(ActorType.ANONYMOUS, null, anonymousKey);
+    }
+
+    public static ReportActor authorOf(WeatherReport report) {
+        return report.getAuthorType() == ActorType.MEMBER
+                ? member(report.getAuthorMemberId())
+                : anonymous(report.getAuthorAnonymousKey());
     }
 
     public String actorKey() {

@@ -2,12 +2,18 @@ package com.nalssilog.report.api;
 
 import com.nalssilog.common.response.CursorPage;
 import com.nalssilog.report.api.dto.CreateReportRequest;
+import com.nalssilog.report.api.dto.CreateReportFlagRequest;
+import com.nalssilog.report.api.dto.ReportFlagResponse;
+import com.nalssilog.report.application.ActorRestrictionService;
+import com.nalssilog.report.application.ReportFlagService;
+import com.nalssilog.report.application.ReportRateLimiter;
 import com.nalssilog.report.api.dto.ReportResponse;
 import com.nalssilog.report.api.dto.ThanksResponse;
 import com.nalssilog.report.api.dto.WeatherStatsResponse;
 import com.nalssilog.report.application.ReportService;
 import com.nalssilog.report.application.dto.ReportActor;
 import com.nalssilog.report.config.ReportActorResolver;
+import com.nalssilog.report.config.ReportClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -31,6 +37,10 @@ public class ReportController {
 
     private final ReportService reportService;
     private final ReportActorResolver actorResolver;
+    private final ReportClientIpResolver clientIpResolver;
+    private final ReportRateLimiter rateLimiter;
+    private final ActorRestrictionService restrictionService;
+    private final ReportFlagService flagService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -42,7 +52,26 @@ public class ReportController {
     ) {
         ReportActor actor = actorResolver.resolveForWrite(memberId, httpRequest, httpResponse);
 
+        restrictionService.ensureCanPost(actor);
+        rateLimiter.checkCreate(actor, clientIpResolver.resolve(httpRequest));
+
         return reportService.create(actor, request.toCommand());
+    }
+
+    @PostMapping("/{id}/flags")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ReportFlagResponse flag(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Long memberId,
+            @Valid @RequestBody CreateReportFlagRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse
+    ) {
+        ReportActor actor = actorResolver.resolveForWrite(memberId, httpRequest, httpResponse);
+
+        rateLimiter.checkFlag(actor, clientIpResolver.resolve(httpRequest));
+
+        return flagService.flag(id, actor, request);
     }
 
     @GetMapping

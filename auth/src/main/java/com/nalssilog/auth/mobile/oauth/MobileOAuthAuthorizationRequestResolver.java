@@ -1,6 +1,7 @@
 package com.nalssilog.auth.mobile.oauth;
 
 import com.nalssilog.auth.oauth.apple.AppleOAuthProperties;
+import com.nalssilog.auth.ticket.AuthChannel;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
@@ -75,7 +76,12 @@ public class MobileOAuthAuthorizationRequestResolver implements OAuth2Authorizat
                 MobileOAuthRequestAttributes.TRANSACTION_PARAMETER);
 
         if (values == null || values.length == 0) {
-            return authorizationRequest;
+            return withFlow(
+                    authorizationRequest,
+                    AuthChannel.WEB,
+                    null,
+                    MobileOAuthRequestAttributes.webState(
+                            authorizationRequest.getState()));
         }
 
         if (values.length != 1 || values[0] == null || values[0].isBlank()) {
@@ -93,10 +99,32 @@ public class MobileOAuthAuthorizationRequestResolver implements OAuth2Authorizat
             throw invalidTransaction();
         }
 
+        return withFlow(
+                authorizationRequest,
+                AuthChannel.MOBILE,
+                transactionId,
+                MobileOAuthRequestAttributes.mobileState(transactionId));
+    }
+
+    private OAuth2AuthorizationRequest withFlow(
+            OAuth2AuthorizationRequest authorizationRequest,
+            AuthChannel channel,
+            String transactionId,
+            String state
+    ) {
         return OAuth2AuthorizationRequest.from(authorizationRequest)
-                .attributes(attributes -> attributes.put(
-                        MobileOAuthRequestAttributes.AUTHORIZATION_ATTRIBUTE,
-                        transactionId))
+                .state(state)
+                .attributes(attributes -> {
+                    attributes.put(
+                            MobileOAuthRequestAttributes.AUTHORIZATION_CHANNEL_ATTRIBUTE,
+                            channel);
+
+                    if (transactionId != null) {
+                        attributes.put(
+                                MobileOAuthRequestAttributes.AUTHORIZATION_ATTRIBUTE,
+                                transactionId);
+                    }
+                })
                 .build();
     }
 

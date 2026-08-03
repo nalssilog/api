@@ -3,14 +3,18 @@ package com.nalssilog.auth.token;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.nalssilog.auth.security.ApiAuthenticationEntryPoint;
+import com.nalssilog.auth.member.MemberClient;
 import com.nalssilog.auth.web.AuthCookieManager;
 import com.nalssilog.common.security.VerifiedRequestCredentials;
 import com.nalssilog.member.domain.MemberStatus;
+import com.nalssilog.member.domain.MemberRole;
 import com.nalssilog.member.domain.Provider;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,12 +33,14 @@ class JwtAuthenticationFilterTest {
             mock(RefreshTokenStore.class);
     private final JwtTokenProvider tokenProvider =
             new JwtTokenProvider(TestAuthProperties.create());
+    private final MemberClient memberClient = mock(MemberClient.class);
     private final JwtAuthenticationFilter filter =
             new JwtAuthenticationFilter(
                     cookieManager,
                     tokenProvider,
                     refreshTokenStore,
-                    new ApiAuthenticationEntryPoint(new ObjectMapper()));
+                    new ApiAuthenticationEntryPoint(new ObjectMapper()),
+                    memberClient);
 
     @BeforeEach
     @AfterEach
@@ -105,6 +111,27 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void adminRequestLoadsCurrentOperationalRoleFromMemberStore() throws Exception {
+        when(memberClient.findRole(7L)).thenReturn(Optional.of(MemberRole.ADMIN));
+        String accessToken = tokenProvider.createAccessToken(
+                7L, MemberStatus.ACTIVE, Provider.KAKAO, "session-7");
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "GET", "/api/admin/report-flags");
+
+        request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
+
+        filter.doFilter(request, new MockHttpServletResponse(), (_, _) -> {
+            var authorities = SecurityContextHolder.getContext()
+                    .getAuthentication()
+                    .getAuthorities();
+
+            assertThat(authorities)
+                    .extracting(authority -> authority.getAuthority())
+                    .contains("ROLE_MEMBER", "ROLE_MODERATOR", "ROLE_ADMIN");
+        });
+    }
+
+    @Test
     void expiredBearerReturnsTheStableExpiredCode() throws Exception {
         JwtTokenProvider expiredTokenProvider =
                 new JwtTokenProvider(TestAuthProperties.create(
@@ -114,7 +141,8 @@ class JwtAuthenticationFilterTest {
                         cookieManager,
                         expiredTokenProvider,
                         refreshTokenStore,
-                        new ApiAuthenticationEntryPoint(new ObjectMapper()));
+                        new ApiAuthenticationEntryPoint(new ObjectMapper()),
+                        mock(MemberClient.class));
         String expiredToken = expiredTokenProvider.createAccessToken(
                 7L,
                 MemberStatus.ACTIVE,

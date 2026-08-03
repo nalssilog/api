@@ -1,5 +1,6 @@
 package com.nalssilog.report.application.dto;
 
+import com.nalssilog.member.application.dto.TermsAgreement;
 import com.nalssilog.report.domain.Precipitation;
 import com.nalssilog.report.domain.Sunlight;
 import com.nalssilog.report.domain.Temperature;
@@ -11,6 +12,7 @@ public record CreateReportCommand(
         Precipitation precipitation,
         Sunlight sunlight,
         String comment,
-        List<String> imageKeys
+        List<String> imageKeys,
+        List<TermsAgreement> agreedTerms
 ) {
 }

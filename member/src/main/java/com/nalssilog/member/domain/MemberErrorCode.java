@@ -28,7 +28,9 @@ public enum MemberErrorCode implements ErrorCode {
     IMAGE_NOT_FOUND("IMAGE_NOT_FOUND", "업로드된 이미지를 찾을 수 없습니다.", HttpStatus.BAD_REQUEST),
     TERMS_NOT_AGREED("TERMS_NOT_AGREED", "필수 약관에 모두 동의해야 합니다.", HttpStatus.BAD_REQUEST),
     FEEDBACK_RATE_LIMITED("FEEDBACK_RATE_LIMITED", "피드백을 너무 자주 보냈습니다. 잠시 후 다시 시도해 주세요.",
-            HttpStatus.TOO_MANY_REQUESTS);
+            HttpStatus.TOO_MANY_REQUESTS),
+    ROLE_TARGET_NOT_ACTIVE("ROLE_TARGET_NOT_ACTIVE", "활성 회원의 권한만 변경할 수 있습니다.", HttpStatus.CONFLICT),
+    LAST_ADMIN_REQUIRED("LAST_ADMIN_REQUIRED", "서비스에는 최소 한 명의 관리자가 필요합니다.", HttpStatus.CONFLICT);
 
     private final String code;
     private final String message;

@@ -3,6 +3,7 @@ package com.nalssilog.member.api.dto;
 import com.nalssilog.member.application.dto.MemberInfo;
 import com.nalssilog.member.domain.AvatarType;
 import com.nalssilog.member.domain.Provider;
+import com.nalssilog.member.domain.MemberRole;
 import java.util.List;
 
 /**
@@ -17,7 +18,8 @@ public record MemberMeResponse(
         String email,
         Avatar avatar,
         List<Provider> connectedProviders,
-        Provider currentProvider
+        Provider currentProvider,
+        MemberRole role
 ) {
 
     public record Avatar(AvatarType type, String value) {
@@ -31,7 +33,8 @@ public record MemberMeResponse(
                 member.email(),
                 new Avatar(member.avatarType(), member.avatarValue()),
                 member.connectedProviders(),
-                currentProvider
+                currentProvider,
+                member.role()
         );
     }
 }

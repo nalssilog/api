@@ -16,10 +16,14 @@ import com.nalssilog.member.application.dto.MemberSummary;
 import com.nalssilog.member.application.dto.SocialLoginResult;
 import com.nalssilog.member.domain.Member;
 import com.nalssilog.member.domain.MemberErrorCode;
+import com.nalssilog.member.domain.MemberRole;
+import com.nalssilog.member.domain.MemberRoleChange;
+import com.nalssilog.member.domain.MemberStatus;
 import com.nalssilog.member.domain.Provider;
 import com.nalssilog.member.domain.SocialAccount;
 import com.nalssilog.member.domain.event.MemberWithdrawnEvent;
 import com.nalssilog.member.repository.MemberRepository;
+import com.nalssilog.member.repository.MemberRoleChangeJpaRepository;
 import com.nalssilog.member.repository.SocialAccountRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -37,6 +41,7 @@ public class MemberAccountService {
     private final MemberRepository memberRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final MemberRoleChangeJpaRepository memberRoleChangeRepository;
 
     private static RuntimeException translateSocialLinkConflict(
         DataIntegrityViolationException exception
@@ -150,6 +155,36 @@ public class MemberAccountService {
 
     public Optional<MemberInfo> findMemberInfo(Long memberId) {
         return memberRepository.findMemberInfo(memberId);
+    }
+
+    public Optional<MemberRole> findRole(Long memberId) {
+        return memberRepository.findRole(memberId);
+    }
+
+    @Transactional
+    public MemberInfo changeRole(Long memberId, MemberRole role, Long changedByMemberId) {
+        Member member = memberRepository.getMember(memberId);
+        MemberRole previousRole = member.getRole();
+
+        if (member.getStatus() != MemberStatus.ACTIVE) {
+            throw new NalssiLogException(MemberErrorCode.ROLE_TARGET_NOT_ACTIVE);
+        }
+
+        if (previousRole == MemberRole.ADMIN
+                && role != MemberRole.ADMIN
+                && memberRepository.countByRole(MemberRole.ADMIN) <= 1) {
+            throw new NalssiLogException(MemberErrorCode.LAST_ADMIN_REQUIRED);
+        }
+
+        if (previousRole == role) {
+            return memberRepository.getMemberInfo(memberId);
+        }
+
+        member.changeRole(role);
+        memberRoleChangeRepository.save(MemberRoleChange.record(
+                memberId, changedByMemberId, previousRole, role));
+
+        return memberRepository.getMemberInfo(memberId);
     }
 
     public List<MemberSummary> findMemberSummaries(Collection<Long> memberIds) {
