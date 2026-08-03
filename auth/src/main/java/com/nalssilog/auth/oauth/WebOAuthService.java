@@ -39,6 +39,19 @@ public class WebOAuthService {
     private final MemberClient memberClient;
     private final AuthProperties properties;
 
+    public void cancelPendingAuthentication(
+            Optional<String> signupTicketId,
+            Optional<String> linkTicketId,
+            Optional<String> linkIntentId
+    ) {
+        signupTicketId.ifPresent(ticketStore::deleteSignup);
+        linkTicketId.ifPresent(ticketId -> {
+            ticketStore.deleteLink(ticketId);
+            ticketStore.deleteLinkConsent(ticketId);
+        });
+        linkIntentId.ifPresent(ticketStore::deleteLinkIntent);
+    }
+
     public Completion complete(
             SocialPrincipal principal,
             Optional<String> linkIntentId,

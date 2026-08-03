@@ -150,6 +150,92 @@ class MobileOAuthServiceTest {
     }
 
     @Test
+    void oauthFailureReturnsErrorDirectlyToAppWithoutIssuingCode() {
+        MobileOAuthTransaction transaction = new MobileOAuthTransaction(
+                MobileOAuthPurpose.LOGIN,
+                Provider.KAKAO,
+                REDIRECT_URI,
+                CHALLENGE,
+                STATE,
+                null,
+                null);
+
+        when(transactionStore.take("transaction"))
+                .thenReturn(Optional.of(transaction));
+
+        String callback = service.completeFailure(
+                        "transaction",
+                        "access_denied",
+                        "User cancelled Kakao login")
+                .orElseThrow();
+
+        assertThat(callback)
+                .contains(
+                        "error=access_denied",
+                        "error_description=User%20cancelled%20Kakao%20login",
+                        "state=" + STATE)
+                .doesNotContain("code=");
+        verifyNoInteractions(codeStore, authTokenService);
+    }
+
+    @Test
+    void rejectedOAuthPrincipalReturnsErrorWithoutIssuingCode() {
+        MobileOAuthTransaction transaction = new MobileOAuthTransaction(
+                MobileOAuthPurpose.LOGIN,
+                Provider.KAKAO,
+                REDIRECT_URI,
+                CHALLENGE,
+                STATE,
+                null,
+                null);
+        SocialAuthPrincipal wrongProvider = new SocialAuthPrincipal(
+                SocialLoginResult.existing(7L, MemberStatus.ACTIVE),
+                new OAuthUserInfo(
+                        Provider.NAVER,
+                        "provider-user",
+                        "user@example.com",
+                        "사용자"),
+                Map.of());
+
+        when(transactionStore.take("transaction"))
+                .thenReturn(Optional.of(transaction));
+
+        String callback = service.complete("transaction", wrongProvider);
+
+        assertThat(callback)
+                .contains(
+                        "error=OAUTH_FAILED",
+                        "error_description=OAuth%20authentication%20failed",
+                        "state=" + STATE)
+                .doesNotContain("code=");
+        verifyNoInteractions(codeStore, authTokenService);
+    }
+
+    @Test
+    void reauthenticationFailureDiscardsPendingLinkAndKeepsExistingSession() {
+        MobileOAuthTransaction transaction = new MobileOAuthTransaction(
+                MobileOAuthPurpose.LOGIN_LINK_REAUTH,
+                Provider.NAVER,
+                REDIRECT_URI,
+                CHALLENGE,
+                STATE,
+                "link-ticket",
+                7L);
+
+        when(transactionStore.take("transaction"))
+                .thenReturn(Optional.of(transaction));
+
+        assertThat(service.completeFailure(
+                "transaction",
+                "access_denied",
+                "OAuth authorization was cancelled")).isPresent();
+
+        verify(ticketStore).deleteLink("link-ticket");
+        verify(ticketStore).deleteLinkConsent("link-ticket");
+        verifyNoInteractions(codeStore, authTokenService);
+    }
+
+    @Test
     void tokensAreCreatedOnlyAfterSuccessfulCodeExchange() {
         String verifier = "v".repeat(43);
         DeviceInfo device = new DeviceInfo(

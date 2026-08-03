@@ -47,7 +47,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                     MobileOAuthRequestAttributes.transactionId(request);
 
             if (mobileTransaction.isEmpty()) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 
                 return;
             }

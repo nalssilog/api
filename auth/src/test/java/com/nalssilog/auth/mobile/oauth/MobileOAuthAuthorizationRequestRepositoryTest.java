@@ -1,8 +1,12 @@
 package com.nalssilog.auth.mobile.oauth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.nalssilog.auth.ticket.AuthChannel;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -19,8 +23,10 @@ class MobileOAuthAuthorizationRequestRepositoryTest {
     private static final String WEB_STATE =
             MobileOAuthRequestAttributes.webState("web-state-0123456789");
 
+    private final MobileOAuthAuthorizationRequestStore mobileStore =
+            mock(MobileOAuthAuthorizationRequestStore.class);
     private final MobileOAuthAuthorizationRequestRepository repository =
-            new MobileOAuthAuthorizationRequestRepository();
+            new MobileOAuthAuthorizationRequestRepository(mobileStore);
 
     @Test
     void webAndMobileRequestsInSameBrowserAreStoredByState() {
@@ -36,6 +42,7 @@ class MobileOAuthAuthorizationRequestRepositoryTest {
 
         save(mobile, session);
         save(web, session);
+        when(mobileStore.take(TRANSACTION_ID)).thenReturn(Optional.of(mobile));
 
         MockHttpServletRequest mobileCallback = callback(session, MOBILE_STATE);
         OAuth2AuthorizationRequest removedMobile =
@@ -48,6 +55,7 @@ class MobileOAuthAuthorizationRequestRepositoryTest {
                 .contains(AuthChannel.MOBILE);
         assertThat(MobileOAuthRequestAttributes.transactionId(mobileCallback))
                 .contains(TRANSACTION_ID);
+        verify(mobileStore).save(TRANSACTION_ID, mobile);
 
         MockHttpServletRequest webCallback = callback(session, WEB_STATE);
 
@@ -62,10 +70,49 @@ class MobileOAuthAuthorizationRequestRepositoryTest {
     }
 
     @Test
-    void mobileStateStillIdentifiesFlowWhenSessionCookieIsMissing() {
+    void mobileRequestIsRecoveredAndConsumedWithoutSessionCookie() {
+        OAuth2AuthorizationRequest mobile = authorizationRequest(
+                MOBILE_STATE,
+                AuthChannel.MOBILE,
+                TRANSACTION_ID);
+        MockHttpServletRequest authorizationRequest = new MockHttpServletRequest();
+
+        repository.saveAuthorizationRequest(
+                mobile,
+                authorizationRequest,
+                new MockHttpServletResponse());
+
+        assertThat(authorizationRequest.getSession(false)).isNull();
+        verify(mobileStore).save(TRANSACTION_ID, mobile);
+
         MockHttpServletRequest callback = new MockHttpServletRequest();
 
         callback.addParameter("state", MOBILE_STATE);
+        when(mobileStore.find(TRANSACTION_ID)).thenReturn(Optional.of(mobile));
+        when(mobileStore.take(TRANSACTION_ID))
+                .thenReturn(Optional.of(mobile))
+                .thenReturn(Optional.empty());
+
+        assertThat(repository.loadAuthorizationRequest(callback)).isEqualTo(mobile);
+        assertThat(repository.removeAuthorizationRequest(
+                callback,
+                new MockHttpServletResponse())).isEqualTo(mobile);
+        assertThat(MobileOAuthRequestAttributes.channel(callback))
+                .contains(AuthChannel.MOBILE);
+        assertThat(MobileOAuthRequestAttributes.transactionId(callback))
+                .contains(TRANSACTION_ID);
+
+        assertThat(repository.removeAuthorizationRequest(
+                callback,
+                new MockHttpServletResponse())).isNull();
+    }
+
+    @Test
+    void missingMobileRequestStillIdentifiesFlowWithoutSessionCookie() {
+        MockHttpServletRequest callback = new MockHttpServletRequest();
+
+        callback.addParameter("state", MOBILE_STATE);
+        when(mobileStore.take(TRANSACTION_ID)).thenReturn(Optional.empty());
 
         assertThat(repository.removeAuthorizationRequest(
                 callback,

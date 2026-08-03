@@ -2,10 +2,13 @@ package com.nalssilog.auth.oauth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.nalssilog.auth.mobile.oauth.MobileOAuthRequestAttributes;
 import com.nalssilog.auth.mobile.oauth.MobileOAuthService;
+import com.nalssilog.auth.web.AuthCookieManager;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -22,7 +25,9 @@ class OAuth2LoginFailureHandlerTest {
     @Test
     void missingEmailRedirectsWithDedicatedFailureCode() throws Exception {
         OAuth2LoginFailureHandler handler = new OAuth2LoginFailureHandler(
-                mock(MobileOAuthService.class));
+                mock(MobileOAuthService.class),
+                mock(WebOAuthService.class),
+                mock(AuthCookieManager.class));
 
         ReflectionTestUtils.setField(handler, "frontendBaseUrl", "https://dev.nalssilog.com");
 
@@ -41,13 +46,55 @@ class OAuth2LoginFailureHandlerTest {
     }
 
     @Test
+    void webCancellationClearsPendingAuthenticationButKeepsLoginSession() throws Exception {
+        MobileOAuthService mobileOAuthService = mock(MobileOAuthService.class);
+        WebOAuthService webOAuthService = mock(WebOAuthService.class);
+        AuthCookieManager cookieManager = mock(AuthCookieManager.class);
+        OAuth2LoginFailureHandler handler = new OAuth2LoginFailureHandler(
+                mobileOAuthService,
+                webOAuthService,
+                cookieManager);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        when(cookieManager.readSignupTicket(request))
+                .thenReturn(Optional.of("signup-ticket"));
+        when(cookieManager.readLinkTicket(request))
+                .thenReturn(Optional.of("link-ticket"));
+        when(cookieManager.readLinkIntent(request))
+                .thenReturn(Optional.of("link-intent"));
+        ReflectionTestUtils.setField(handler, "frontendBaseUrl", "https://dev.nalssilog.com");
+
+        handler.onAuthenticationFailure(
+                request,
+                response,
+                new OAuth2AuthenticationException(new OAuth2Error("access_denied")));
+
+        assertThat(response.getRedirectedUrl()).isEqualTo(
+                "https://dev.nalssilog.com/auth/callback?result=FAILED&code=OAUTH_CANCELLED");
+        verify(webOAuthService).cancelPendingAuthentication(
+                Optional.of("signup-ticket"),
+                Optional.of("link-ticket"),
+                Optional.of("link-intent"));
+        verify(cookieManager).clearSignupTicketCookie(response);
+        verify(cookieManager).clearLinkTicketCookie(response);
+        verify(cookieManager).clearLinkIntentCookie(response);
+        verify(cookieManager, never()).clearAuthCookies(response);
+    }
+
+    @Test
     void mobileFailureReturnsToDeepLinkWithoutSessionCookie() throws Exception {
         MobileOAuthService mobileOAuthService = mock(MobileOAuthService.class);
         OAuth2LoginFailureHandler handler = new OAuth2LoginFailureHandler(
-                mobileOAuthService);
+                mobileOAuthService,
+                mock(WebOAuthService.class),
+                mock(AuthCookieManager.class));
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
-        String callback = "nalssilog-dev://auth/callback?code=one-time-code&state=app-state";
+        String callback = "nalssilog-dev://auth/callback"
+                + "?error=authorization_request_not_found"
+                + "&error_description=OAuth%20authentication%20failed"
+                + "&state=app-state";
 
         request.addParameter(
                 "state",
@@ -55,7 +102,8 @@ class OAuth2LoginFailureHandlerTest {
 
         when(mobileOAuthService.completeFailure(
                 TRANSACTION_ID,
-                "OAUTH_FAILED"))
+                "authorization_request_not_found",
+                "OAuth authentication failed"))
                 .thenReturn(Optional.of(callback));
 
         handler.onAuthenticationFailure(
@@ -71,7 +119,9 @@ class OAuth2LoginFailureHandlerTest {
     void expiredMobileFailureNeverFallsBackToWebFrontend() throws Exception {
         MobileOAuthService mobileOAuthService = mock(MobileOAuthService.class);
         OAuth2LoginFailureHandler handler = new OAuth2LoginFailureHandler(
-                mobileOAuthService);
+                mobileOAuthService,
+                mock(WebOAuthService.class),
+                mock(AuthCookieManager.class));
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -85,7 +135,8 @@ class OAuth2LoginFailureHandlerTest {
 
         when(mobileOAuthService.completeFailure(
                 TRANSACTION_ID,
-                "OAUTH_FAILED"))
+                "authorization_request_not_found",
+                "OAuth authentication failed"))
                 .thenReturn(Optional.empty());
 
         handler.onAuthenticationFailure(
@@ -95,6 +146,7 @@ class OAuth2LoginFailureHandlerTest {
                         new OAuth2Error("authorization_request_not_found")));
 
         assertThat(response.getStatus()).isEqualTo(410);
+        assertThat(response.getErrorMessage()).isNull();
         assertThat(response.getRedirectedUrl()).isNull();
         assertThat(response.getHeader("Location")).isNull();
     }

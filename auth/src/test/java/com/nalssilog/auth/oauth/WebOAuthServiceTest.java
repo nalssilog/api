@@ -38,6 +38,19 @@ class WebOAuthServiceTest {
             mock(AuthProperties.class));
 
     @Test
+    void cancellationDeletesEveryPendingAuthenticationTicket() {
+        service.cancelPendingAuthentication(
+                Optional.of("signup-ticket"),
+                Optional.of("link-ticket"),
+                Optional.of("link-intent"));
+
+        verify(ticketStore).deleteSignup("signup-ticket");
+        verify(ticketStore).deleteLink("link-ticket");
+        verify(ticketStore).deleteLinkConsent("link-ticket");
+        verify(ticketStore).deleteLinkIntent("link-intent");
+    }
+
+    @Test
     void loginLinkIssuesSessionForNewlyLinkedProvider() {
         DeviceInfo device = new DeviceInfo("Chrome", "client-a.test");
         LinkTicket ticket = new LinkTicket(

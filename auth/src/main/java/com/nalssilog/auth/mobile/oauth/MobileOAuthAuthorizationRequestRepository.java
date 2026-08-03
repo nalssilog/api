@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpSession;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 @Component
+@RequiredArgsConstructor
 public class MobileOAuthAuthorizationRequestRepository
         implements AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
 
@@ -25,12 +27,25 @@ public class MobileOAuthAuthorizationRequestRepository
 
     private final HttpSessionOAuth2AuthorizationRequestRepository legacyDelegate =
             new HttpSessionOAuth2AuthorizationRequestRepository();
+    private final MobileOAuthAuthorizationRequestStore mobileStore;
 
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
         Assert.notNull(request, "request cannot be null");
 
         String state = request.getParameter(OAuth2ParameterNames.STATE);
+        Optional<String> mobileTransaction =
+                MobileOAuthRequestAttributes.transactionIdFromState(state);
+
+        if (mobileTransaction.isPresent()) {
+            Optional<OAuth2AuthorizationRequest> mobileRequest =
+                    mobileStore.find(mobileTransaction.get());
+
+            if (mobileRequest.isPresent()) {
+                return mobileRequest.get();
+            }
+        }
+
         HttpSession session = request.getSession(false);
 
         if (state == null || session == null) {
@@ -61,6 +76,16 @@ public class MobileOAuthAuthorizationRequestRepository
 
         Assert.hasText(state, "authorizationRequest.state cannot be empty");
 
+        Optional<String> mobileTransaction =
+                authorizationTransaction(authorizationRequest)
+                        .or(() -> MobileOAuthRequestAttributes.transactionIdFromState(state));
+
+        if (mobileTransaction.isPresent()) {
+            mobileStore.save(mobileTransaction.get(), authorizationRequest);
+
+            return;
+        }
+
         HttpSession session = request.getSession();
 
         synchronized (session) {
@@ -87,7 +112,15 @@ public class MobileOAuthAuthorizationRequestRepository
         Assert.notNull(response, "response cannot be null");
 
         String state = request.getParameter(OAuth2ParameterNames.STATE);
-        OAuth2AuthorizationRequest authorizationRequest = removeByState(request, state);
+        Optional<String> mobileTransaction =
+                MobileOAuthRequestAttributes.transactionIdFromState(state);
+        OAuth2AuthorizationRequest mobileRequest = mobileTransaction
+                .flatMap(mobileStore::take)
+                .orElse(null);
+        OAuth2AuthorizationRequest sessionRequest = removeByState(request, state);
+        OAuth2AuthorizationRequest authorizationRequest = mobileRequest != null
+                ? mobileRequest
+                : sessionRequest;
 
         if (authorizationRequest == null) {
             authorizationRequest = legacyDelegate.removeAuthorizationRequest(request, response);

@@ -151,6 +151,15 @@ public class MobileOAuthService {
                         AuthErrorCode.AUTH_MOBILE_TRANSACTION_EXPIRED));
         MobileOAuthGrant grant = resolveGrant(transaction, principal);
 
+        if (grant.result() == MobileAuthResult.FAILED) {
+            discardPendingLink(transaction);
+
+            return issueFailureCallback(
+                    transaction,
+                    grant.errorCode(),
+                    "OAuth authentication failed");
+        }
+
         return issueCallback(transaction, grant);
     }
 
@@ -171,11 +180,20 @@ public class MobileOAuthService {
         };
     }
 
-    public Optional<String> completeFailure(String transactionId, String errorCode) {
+    public Optional<String> completeFailure(
+            String transactionId,
+            String error,
+            String errorDescription
+    ) {
         return transactionStore.take(transactionId)
-                .map(transaction -> issueCallback(
-                        transaction,
-                        MobileOAuthGrant.failed(transaction.provider(), errorCode)));
+                .map(transaction -> {
+                    discardPendingLink(transaction);
+
+                    return issueFailureCallback(
+                            transaction,
+                            error,
+                            errorDescription);
+                });
     }
 
     public ExchangeResult exchange(
@@ -437,6 +455,30 @@ public class MobileOAuthService {
                 .build()
                 .encode()
                 .toUriString();
+    }
+
+    private String issueFailureCallback(
+            MobileOAuthTransaction transaction,
+            String error,
+            String errorDescription
+    ) {
+        return UriComponentsBuilder
+                .fromUriString(transaction.redirectUri())
+                .queryParam("error", error)
+                .queryParam("error_description", errorDescription)
+                .queryParam("state", transaction.appState())
+                .build()
+                .encode()
+                .toUriString();
+    }
+
+    private void discardPendingLink(MobileOAuthTransaction transaction) {
+        if (transaction.referenceId() == null) {
+            return;
+        }
+
+        ticketStore.deleteLink(transaction.referenceId());
+        ticketStore.deleteLinkConsent(transaction.referenceId());
     }
 
     private void validateStart(
